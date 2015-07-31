@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "async": "^1.4.0",
     "file-type": "^2.6.0",
     "read-chunk": "^1.0.1"
   }

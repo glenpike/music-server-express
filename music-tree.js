@@ -8,62 +8,64 @@ var path = require('path');
 var readChunk = require('read-chunk');
 var fileType = require('file-type');
 
-var mm = require('musicmetadata');
+// var mm = require('musicmetadata');
 var async = require('async');
 
-var q = async.queue(function(task, callback) {
-    console.log('q ', q.length(), ' num processing ', q.running(), ' file ', task.file);
-    try {
-        readMetaData(task.file, callback);
-    } catch(e) {
-        console.error('error: ', e.stack);
-    }
-}, 50);
-
-q.pause();
-
-var findFiles = function(dir, test, done) {
+var findFiles = function(dir, isAllowedFile, callback) {
     var results = [];
-    fs.readdir(dir, function(err, list) {
-        if (err) return done(err);
-        var pending = list.length;
-        if (!pending) return done(null, results);
-        list.forEach(function(file) {
-            file = path.resolve(dir, file);
-            fs.stat(file, function(err, stat) {
-                if (stat && stat.isDirectory()) {
-                    findFiles(file, test, function(err, res) {
-                        results = results.concat(res);
-                        if (!--pending) done(null, results);
+    //console.log('findFiles ', dir);
+    fs.stat(dir, function(err, stat) {
+        if (err) { return callback(err); }
+        if (stat.isFile()) {
+            if(!isAllowedFile || isAllowedFile(dir)) {
+                results.push(dir);
+            }
+            return callback(null, results);
+        } else if(stat.isDirectory()) {
+            fs.readdir(dir, function(err, files) {
+                async.eachSeries(files, function(file, callback) {
+                    //console.log('processing file ', file)
+                    findFiles(path.resolve(dir, file), isAllowedFile, function(err, res) {
+                         results = results.concat(res);
+                         return callback(null, results);
                     });
-                } else if(stat && stat.isFile()) {
-                    if(!test) {
-                        results.push(file);
+                }, function(err) {
+                    if(err) {
+                        console.log('a dir failed to process ', err);
                     } else {
-                        var info = test(file);
-                        if(info) {
-                            var fileInfo  = {file: file, info: info };
-                            results.push(fileInfo);
-                            q.push({file: file}, function(err, metadata) {
-                                if(err) {
-                                    console.log(file, ' error with readMetaData ', err);
-                                }
-                                else if(metadata) {
-                                    console.log(' file done ', file, ' q ', q.running());
-                                    fileInfo.meta = metadata
-                                }
-                            });
-                        }
+                        //console.log('dir processed successfully ', dir);
+                        return callback(null, results);
                     }
-                    if (!--pending) done(null, results);
-                }
+                });
             });
-        });
+        } else {
+            console.warn('strange file? ', stat);
+            return;
+        }
     });
 }
 
+// function readMetaData(file, done) {
+//     var parser = mm(fs.createReadStream(file), function (err, metadata) {
+//         if (err) {
+//             return done(err, null);
+//         }
+//         return done(null, metadata);
+//     });
+// }
 
-function test(file, done) {
+// var q = async.queue(function(task, callback) {
+//     console.log('q ', q.length(), ' num processing ', q.running(), ' file ', task.file);
+//     try {
+//         readMetaData(task.file, callback);
+//     } catch(e) {
+//         console.error('error: ', e.stack);
+//     }
+// }, 50);
+
+// q.pause();
+
+function isAllowedFile(file, done) {
     var buffer = readChunk.sync(file, 0, 262);
     var info = fileType(buffer);
     var result = null;
@@ -75,25 +77,24 @@ function test(file, done) {
     return result;
 }
 
-function readMetaData(file, done) {
-    var parser = mm(fs.createReadStream(file), function (err, metadata) {
-        if (err) {
-            return done(err, null);
+
+
+try {
+    var dir = process.argv.length > 2 ? process.argv[2] : '/media/ski/linmedia/Music/ogg/';
+
+    findFiles(dir, isAllowedFile, function(err, results) {
+        if(err) {
+            throw err;
         }
-        return done(null, metadata);
-    });
-}
-
-
-findFiles('/media/ski/linmedia/Music/ogg/', test, function(err, results) {
-    if(err) {
-        throw err;
-    }
-    q.drain = function() {
-        console.log('all items have been processed');
-
         console.log('results ', results);
-    }
-    q.resume();
-    console.log('done list. ', q.length(), ' left in queue');
-});
+        // q.drain = function() {
+        //     console.log('all items have been processed');
+
+        //     console.log('results ', results);
+        // }
+        // q.resume();
+        // console.log('done list. ', q.length(), ' left in queue');
+    });
+} catch(e) {
+    console.error(e.stack);
+}
