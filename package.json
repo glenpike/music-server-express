@@ -1,0 +1,15 @@
+{
+  "name": "node-spikes",
+  "version": "0.0.0",
+  "description": "",
+  "main": "music-tree.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "file-type": "^2.6.0",
+    "read-chunk": "^1.0.1"
+  }
+}
