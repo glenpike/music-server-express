@@ -58,7 +58,6 @@ function getSimpleExtFilter(accepted) {
     } else if(accepted instanceof String) {
         acceptedFiles = accepted.split(',');
     }
-    console.log('getSimpleExtFilter ', acceptedFiles);
 
     function fileExtFilter(file) {
         var buffer = readChunk.sync(file, 0, 262);
