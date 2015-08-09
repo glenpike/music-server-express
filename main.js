@@ -1,6 +1,7 @@
 var ff = require('./file-finder.js');
 var Promise = require("es6-promise").Promise;
 var mediaDb = require('./media-db.js');
+var async = require('async');
 
 // function readMetaData(file, done) {
 //     var parser = mm(fs.createReadStream(file), function (err, metadata) {
@@ -10,17 +11,17 @@ var mediaDb = require('./media-db.js');
 //         return done(null, metadata);
 //     });
 // }
-
-// var q = async.queue(function(task, callback) {
-//     console.log('q ', q.length(), ' num processing ', q.running(), ' file ', task.file);
-//     try {
-//         readMetaData(task.file, callback);
-//     } catch(e) {
-//         console.error('error: ', e.stack);
-//     }
-// }, 50);
-
-// q.pause();
+function cleanDB() {
+    return new Promise(function(resolve, reject) {
+        mediaDb.deleteAllMediaItems(function(err, results) {
+            console.log('deleteAllMediaItems ', arguments);
+            if(err) {
+                reject(err);
+            }
+            resolve(results);
+        });
+    });
+}
 
 function findFiles(path) {
     var acceptedFiles = ['wmv','mpg','mp3','m4a','ogg','flac','wav'];
@@ -36,38 +37,63 @@ function findFiles(path) {
     });
 }
 
-function addFilesToDB(files, callback) {
-    var errors = [];
-    var added = [];
-    var done = 0;
 
-    //Queue this!!!
-    for(var i = 0;i < files.length;i++) {
-        mediaDb.addFile(files[i], function(err, wasAdded) {
-            if(err) {
-                errors.push({
-                    file: files[i].path,
-                    error: err
+function addFilesToDB(files) {
+    return new Promise(function(resolve, reject) {
+        try {
+            var errors = [];
+            var added = [];
+
+            //Create a queue 'worker' function which processes each item
+            //we add to the queue
+            function fileWorker(task, callback) {
+                mediaDb.createMediaItem(task.file, function(err, wasAdded) {
+                    if(err) {
+                        errors.push({
+                            file: task.file.path,
+                            error: err
+                        });
+                    } else if(wasAdded) {
+                        added.push(task.file);
+                    }
+                    callback(err);
                 });
-            } else if(wasAdded) {
-                added.push(files[i]);
             }
-            done++;
-            if(done == files.length) {
-                callback(errors, added)
+
+            var q = async.queue(fileWorker, 10);
+
+            q.pause();
+
+            for(var i = 0;i < files.length;i++) {
+                q.push({file: files[i]});
             }
-        });
-    }
+
+            q.drain = function() {
+                resolve({files: files, errors: errors, added: added});
+            };
+
+            q.resume();
+        } catch(e) {
+            //overkill?  We may have DB errors!
+            reject(e);
+        }
+    });
 }
 
 try {
     var dir = process.argv.length > 2 ? process.argv[2] : '/media/ski/linmedia/Music/ogg/';
-    findFiles(dir).then(function(files) {
-        addFilesToDB(files, function(errors, added) {
-            console.log('added ', added.length, 'of ', files.length, ' errors ', errors);
-        });
-    }, function(error) {
-        console.log('error finding files ', error);
+    cleanDB().then(function() {
+        return findFiles(dir);
+    }).then(function(files) {
+        return addFilesToDB(files);
+    }).then(function(results) {
+        console.log('added ', results.added.length, 'of ', results.files.length, ' errors ', results.errors);
+        //Now, for each added file, read it's meta-data and update the DB...
+
+        process.exit();
+    }).catch(function(error) {
+        console.log('error ', error);
+        process.exit();
     });
 } catch(e) {
     console.error('eek ', e.stack);
