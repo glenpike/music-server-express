@@ -51,13 +51,18 @@ describe('file-finder tests', function() {
     });
 
     function testGetSimpleFilter(extensions, expected, filter, done) {
+        var allTypes = ['jpg', 'png', 'wav', 'mp3', 'ogg', 'flac'];
         var fullPath = path.resolve('./test-files');
         ff.findFiles(fullPath, filter, function(err, results) {
             results.length.should.equal(extensions.length * expected.length);
-            for(var i = 0;i < extensions.length;i++) {
+            for(var i = 0;i < allTypes.length;i++) {
                 for(var j = 0;j < expected.length;j++) {
-                    var pathToCheck = fullPath + '/' + expected[j] + '.' + extensions[i];
-                    results.should.contain.an.item.with.property('path', pathToCheck);
+                    var pathToCheck = fullPath + '/' + expected[j] + '.' + allTypes[i];
+                    if(-1 != extensions.indexOf(allTypes[i])) {
+                        results.should.contain.an.item.with.property('path', pathToCheck);
+                    } else {
+                        results.should.not.contain.an.item.with.property('path', pathToCheck);
+                    }
                 }
             }
             done();
