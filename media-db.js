@@ -6,7 +6,7 @@ var collection = db.collection('files');
 
 //Very simplistic CRUD wrapper for database
 //Does not take advantage of mongo / mongoskin features much.
-function readMediaItem(params, callback) {
+function readMediaItems(params, callback) {
     var query = params || {};
     collection.find(query, function(err, result) {
         if(err) {
@@ -87,6 +87,7 @@ function deleteAllMediaItems(callback) {
 module.exports = {
     createMediaItem: createMediaItem,
     readMediaItem: readMediaItem,
+    readMediaItems: readMediaItems,
     updateMediaItem: updateMediaItem,
     deleteMediaItem: deleteMediaItem,
     deleteAllMediaItems: deleteAllMediaItems

@@ -11,18 +11,21 @@ function findFiles(dir, isAllowedFile, callback) {
     fs.stat(dir, function(err, stat) {
         if (err) { return callback(err); }
         if (stat.isFile()) {
-            var info = {
-                    path: dir
-                },
+            var info = {},
                 extraInfo;
 
             if(isAllowedFile) {
                 extraInfo = isAllowedFile(dir);
+                //Should possibly look at "deep" extend here?
                 if(extraInfo) {
-                    info.ext = extraInfo.ext;
-                    info.mime = extraInfo.mime;
+                    for(var k in extraInfo) {
+                        info[k] = extraInfo[k];
+                    }
                 }
             }
+
+            info.path = dir;
+
 
             if(!isAllowedFile || extraInfo) {
                 results.push(info);
@@ -55,7 +58,7 @@ function getSimpleExtFilter(accepted) {
     var acceptedFiles = null;
     if(accepted instanceof Array) {
         acceptedFiles = accepted.slice(0);
-    } else if(accepted instanceof String) {
+    } else if('string' == typeof accepted) {
         acceptedFiles = accepted.split(',');
     }
 
