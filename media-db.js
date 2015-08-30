@@ -46,20 +46,21 @@ function createMediaItem(file, callback) {
     });
 }
 
-function updateMediaItem(id, data, callback) {
-    readMediaItem(id, function(err, result) {
+function updateMetadata(file, metadata, callback) {
+    readMediaItem(file._id, function(err, result) {
         if(err) {
-            console.log('updateMediaItem - readMediaItem error', err);
+            console.log('updateMetadata - readMediaItem error', err);
             return callback(err);
         }
-        //console.log('updateMediaItem - readMediaItem result ', result);
+        //console.log('updateMetadata - ', file.path, ' metadata ', metadata);
         if(!result) {
             return callback(null, false);
         }
-        collection.insert({_id: id}, {$set:data}, function(err, result) {
+        collection.update({_id: file._id}, {metadata:metadata}, function(err, result) {
             if(err) {
                 return callback(err);
             }
+            file.metadata = metadata;
             return callback(null, true);
         });
     });
@@ -88,7 +89,7 @@ module.exports = {
     createMediaItem: createMediaItem,
     readMediaItem: readMediaItem,
     readMediaItems: readMediaItems,
-    updateMediaItem: updateMediaItem,
+    updateMetadata: updateMetadata,
     deleteMediaItem: deleteMediaItem,
     deleteAllMediaItems: deleteAllMediaItems
 };

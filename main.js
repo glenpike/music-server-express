@@ -1,16 +1,10 @@
+var fs = require('fs');
 var ff = require('./file-finder.js');
 var Promise = require("es6-promise").Promise;
 var mediaDb = require('./media-db.js');
 var async = require('async');
+var mm = require('musicmetadata');
 
-// function readMetaData(file, done) {
-//     var parser = mm(fs.createReadStream(file), function (err, metadata) {
-//         if (err) {
-//             return done(err, null);
-//         }
-//         return done(null, metadata);
-//     });
-// }
 function cleanDB() {
     return new Promise(function(resolve, reject) {
         mediaDb.deleteAllMediaItems(function(err, results) {
@@ -80,6 +74,77 @@ function addFilesToDB(files) {
     });
 }
 
+function updateMediaInfo(files) {
+    return new Promise(function(resolve, reject) {
+        try {
+            var errors = [];
+            var filesWithMetadata = 0;
+            var filesUpdated = []
+
+            //TODO - still "smell" around the whole errors / callback thing.
+            function getDataAndUpdate(task, taskCallback) {
+                async.waterfall([
+                    function(callback) {
+                        mm(fs.createReadStream(task.file.path), function (err, metadata) {
+                            if(err) {
+                                errors.push({
+                                    file: task.file.path,
+                                    error: err
+                                });
+                                callback(err);
+                            } else if(metadata) {
+                                filesWithMetadata++;
+                                callback(null, task.file, metadata);
+                            }
+
+                        });
+                    },
+                    function(file, metadata, callback) {
+                        mediaDb.updateMetadata(file, metadata, function(err, wasUpdated) {
+                            if(err) {
+                                errors.push({
+                                    file: task.file.path,
+                                    error: err
+                                });
+                                callback(err);
+                            } else if(wasUpdated) {
+                                filesUpdated.push(task.file);
+                                callback(null, task.file);
+                            }
+
+                        });
+                    }
+
+                ], function(err, result) {
+                    //console.log('waterfall main ', err, result);
+                    taskCallback(err)
+                });
+            }
+
+            var q = async.queue(getDataAndUpdate, 10);
+
+            q.pause();
+
+            for(var i = 0;i < files.length;i++) {
+                q.push({file: files[i]});
+            }
+
+            q.drain = function() {
+                resolve({
+                    files: files,
+                    errors: errors,
+                    filesWithMetadata: filesWithMetadata,
+                    filesUpdated:filesUpdated
+                });
+            };
+
+            q.resume();
+        } catch(e) {
+            reject(e);
+        }
+    });
+}
+
 try {
     var dir = process.argv.length > 2 ? process.argv[2] : '/media/ski/linmedia/Music/ogg/';
     cleanDB().then(function() {
@@ -89,7 +154,11 @@ try {
     }).then(function(results) {
         console.log('added ', results.added.length, 'of ', results.files.length, ' errors ', results.errors);
         //Now, for each added file, read it's meta-data and update the DB...
-
+        return updateMediaInfo(results.added);
+    }).then(function(results) {
+        console.log('db updated meta in ', results.filesUpdated.length, 'of ', results.filesWithMetadata, ' errors ', results.errors);
+        //console.log('filesWithMetadata ', results.filesWithMetadata);
+        // console.log('filesUpdated ', results.filesUpdated);
         process.exit();
     }).catch(function(error) {
         console.log('error ', error);

@@ -28,6 +28,7 @@ describe('file-finder tests', function() {
         });
     });
 
+    //Also tests copying of "filter" output back into our file results
     it('can be passed a function to filter files ', function(done) {
         var count = 0;
         var filter = function(file) {
