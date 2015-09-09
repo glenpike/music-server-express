@@ -41,20 +41,6 @@ library.get('/', function(req, res, next) {
         })
 });
 
-library.get('/bogeys', function(req, res, next) {
-    console.log('bogeys');
-    req.collection.aggregate([
-        { $match: { path: { $exists: false } } }
-    ],
-    function(e, results) {
-        if(e) {
-            return next(e)
-        }
-        res.send(results);
-    // do something with err and result
-    })
-});
-
 library.get('/all', function(req, res, next) {
     console.log('all');
    req.collection.find({})
