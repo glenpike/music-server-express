@@ -41,9 +41,33 @@ library.get('/', function(req, res, next) {
         })
 });
 
-library.get('/all', function(req, res, next) {
+library.get('/play/:id', function(req, res, next) {
+    console.log('play');
+    req.collection.findOne({ _id: req.params.id },
+        function(e, result) {
+            if(e) {
+                console.log('error ', e)
+                return next(e)
+            }
+            if(!result) {
+                res.status(404).send('Sorry! Can\'t find it.');
+            } else {
+                res.sendFile(result.path, null, function (err) {
+                    if (err) {
+                        console.log(err);
+                        res.status(err.status).end();
+                    }
+                    else {
+                        console.log('Sent:', result.path);
+                    }
+                });
+            }
+        })
+});
+
+library.get('/all-data', function(req, res, next) {
     console.log('all');
-   req.collection.find({})
+    req.collection.find({})
         .toArray(function(e, results) {
             if(e) {
                 return next(e)
