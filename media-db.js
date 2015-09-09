@@ -56,7 +56,7 @@ function updateMetadata(file, metadata, callback) {
         if(!result) {
             return callback(null, false);
         }
-        collection.update({_id: file._id}, {metadata:metadata}, function(err, result) {
+        collection.update({_id: file._id}, {$set: {metadata:metadata}}, function(err, result) {
             if(err) {
                 return callback(err);
             }
