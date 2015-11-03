@@ -13,8 +13,8 @@ library.use('/', function(req, res, next) {
 });
 
 
-library.get('/', function(req, res, next) {
-    console.log('library');
+library.get('/tracks', function(req, res, next) {
+    console.log('tracks');
     var entries = [];
     req.collection.find({}, {_id: 1, path: 1, metadata: 1})
         .toArray(function(e, results) {
@@ -31,13 +31,29 @@ library.get('/', function(req, res, next) {
                 } else {
                     data.title = data.path.replace(/.*\/([^.]+)\..*$/gi, '$1');
                 }
-                if(entry.metadata.album) {
+                if(entry.metadata && entry.metadata.album) {
                     data.album = entry.metadata.album;
                 }
                 entries.push(data);
 
             });
             res.send(entries);
+        })
+});
+library.get('/tracks/:id', function(req, res, next) {
+    console.log('get ');
+    req.collection.findOne({ _id: req.params.id },
+        function(e, result) {
+            if(e) {
+                console.log('error ', e)
+                return next(e)
+            }
+            if(!result) {
+                res.status(404).send('Sorry! Can\'t find it.');
+            } else {
+                console.log('get: ', result)
+                res.send(result);
+            }
         })
 });
 
@@ -65,7 +81,7 @@ library.get('/play/:id', function(req, res, next) {
         })
 });
 
-library.get('/all-data', function(req, res, next) {
+library.get('/all', function(req, res, next) {
     console.log('all');
     req.collection.find({})
         .toArray(function(e, results) {
@@ -78,7 +94,6 @@ library.get('/all-data', function(req, res, next) {
 
 library.get('/albums', function(req, res, next) {
     console.log('albums');
-    var albums = [];
     req.collection.aggregate([
         { $match: { metadata: { $exists: true } } },
         { $project: { album: "$metadata.album" } },
@@ -89,14 +104,108 @@ library.get('/albums', function(req, res, next) {
             return next(e)
         }
         res.send(results);
-    // do something with err and result
-    })
-    // .toArray(function(e, results) {
-    //         if(e) {
-    //             return next(e)
-    //         }
-    //         res.send(results);
-    //     })
+    });
+});
+
+function parseTracks(results) {
+    var tracks = [];
+
+    results.forEach(function(track) {
+        var data = {
+            id: track._id,
+            path: track.path ? track.path : 'No path'
+        };
+        if(track.metadata) {
+            if(track.metadata.artist) {
+                data.artist = track.metadata.artist.join(',');
+            }
+            if(track.metadata.album) {
+                data.album = track.metadata.album;
+            }
+            if(track.metadata.title) {
+                data.title = track.metadata.title;
+            } else {
+                data.title = data.path.replace(/.*\/([^.]+)\..*$/gi, '$1');
+            }
+            if(track.metadata.track && track.metadata.track.no) {
+                data.track = track.metadata.track.no;
+            }
+            if(track.metadata.disk && track.metadata.disk.no) {
+                data.disk = track.metadata.disk.no;
+            }
+        }
+
+        tracks.push(data);
+    });
+    return tracks;
+}
+
+library.get('/albums/:id', function(req, res, next) {
+    console.log('album');
+    req.collection.find({ 'metadata.album': req.params.id})
+        .sort({ 'metadata.disk.no': 1, 'metadata.track.no': 1})
+        .toArray(function(e, results) {
+            if(e) {
+                return next(e)
+            }
+            res.send(parseTracks(results));
+        });
+});
+
+library.get('/artists', function(req, res, next) {
+    console.log('artists');
+    req.collection.aggregate([
+        { $match: { metadata: { $exists: true } } },
+        { $project: { artist: "$metadata.artist" } },
+        {   $group : {_id : "$artist", num_tracks: { $sum: 1 } } }
+    ],
+    function(e, results) {
+        if(e) {
+            return next(e)
+        }
+        res.send(results);
+    });
+});
+
+library.get('/artists/:id', function(req, res, next) {
+    console.log('artist');
+    req.collection.find({ 'metadata.artist': req.params.id})
+        .sort({ 'metadata.album': 1, 'metadata.disk.no': 1, 'metadata.track.no': 1})
+        .toArray(function(e, results) {
+            if(e) {
+                return next(e)
+            }
+            res.send(parseTracks(results));
+        });
+});
+
+library.get('/genres', function(req, res, next) {
+    console.log('genres');
+    req.collection.aggregate([
+        { $match: { metadata: { $exists: true }, 'metadata.genre': { $ne: null} } },
+        { $project: { genre: "$metadata.genre" } },
+        { $unwind : "$genre" },
+        { $group : {_id : "$genre", num_tracks: { $sum: 1 } } },
+        { $sort: { "num_tracks": -1 } }
+    ],
+    function(e, results) {
+        if(e) {
+            return next(e)
+        }
+        res.send(results);
+    });
+});
+
+library.get('/genres/:id', function(req, res, next) {
+    console.log('genre');
+    req.collection.find({ 'metadata.genre': req.params.id})
+        .sort({ 'metadata.artist': 1, 'metadata.album': 1, 'metadata.disk.no': 1, 'metadata.track.no': 1})
+        .toArray(function(e, results) {
+            if(e) {
+                return next(e)
+            }
+            res.send(parseTracks(results));
+        });
 });
 
 module.exports = library;

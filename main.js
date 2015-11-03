@@ -178,7 +178,7 @@ function debug() {
 //TODO - cross reference albums and other metadata.
 //TODO - what happens when files are deleted on disk?
 try {
-    var dir = options.path ? options.path : '/media/ski/linmedia/Music/ogg/';
+    var dir = options.path ? options.path : '/media/linmedia/Music/ogg/';
 
     //We only clean the DB if set, otherwise we resolve a "dummy" promise
     ((options.clean) ? cleanDB() : Promise.resolve(options))
