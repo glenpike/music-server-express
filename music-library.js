@@ -92,21 +92,6 @@ library.get('/all', function(req, res, next) {
         })
 });
 
-library.get('/albums', function(req, res, next) {
-    console.log('albums');
-    req.collection.aggregate([
-        { $match: { metadata: { $exists: true } } },
-        { $project: { album: "$metadata.album" } },
-        {   $group : {_id : "$album", num_tracks: { $sum: 1 } } }
-    ],
-    function(e, results) {
-        if(e) {
-            return next(e)
-        }
-        res.send(results);
-    });
-});
-
 function parseTracks(results) {
     var tracks = [];
 
@@ -140,6 +125,22 @@ function parseTracks(results) {
     return tracks;
 }
 
+library.get('/albums', function(req, res, next) {
+    console.log('albums');
+    req.collection.aggregate([
+        { $match: { metadata: { $exists: true }, 'metadata.album': { $ne: ""} } },
+        { $project: { album: "$metadata.album" } },
+        {   $group : {_id : "$album", num_tracks: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+    ],
+    function(e, results) {
+        if(e) {
+            return next(e)
+        }
+        res.send(results);
+    });
+});
+
 library.get('/albums/:id', function(req, res, next) {
     console.log('album');
     req.collection.find({ 'metadata.album': req.params.id})
@@ -157,7 +158,9 @@ library.get('/artists', function(req, res, next) {
     req.collection.aggregate([
         { $match: { metadata: { $exists: true } } },
         { $project: { artist: "$metadata.artist" } },
-        {   $group : {_id : "$artist", num_tracks: { $sum: 1 } } }
+        { $unwind : "$artist" },
+        {   $group : {_id : "$artist", num_tracks: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
     ],
     function(e, results) {
         if(e) {
