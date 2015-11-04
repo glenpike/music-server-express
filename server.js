@@ -4,6 +4,13 @@ var app = express();
 var bodyParser = require('body-parser');
 var morgan = require('morgan');
 var library = require('./music-library');
+var cors = require('express-cors')
+
+app.use(cors({
+    allowedOrigins: [
+        'localhost:8100', 'google.com'
+    ]
+}))
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
