@@ -8,7 +8,7 @@ var cors = require('express-cors')
 
 app.use(cors({
     allowedOrigins: [
-        'localhost:8100', 'google.com'
+        'localhost', '192.168.0.3'
     ]
 }))
 

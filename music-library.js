@@ -57,6 +57,33 @@ library.get('/tracks/:id', function(req, res, next) {
         })
 });
 
+library.get('/stream/:id', function(req, res, next) {
+    console.log('stream');
+    req.collection.findOne({ _id: req.params.id },
+        function(e, result) {
+            if(e) {
+                console.log('error ', e)
+                return next(e)
+            }
+            if(!result) {
+                res.status(404).send('Sorry! Can\'t find it.');
+            } else {
+                console.log('play file ', result);
+                var fs = require('fs')
+                stat = fs.statSync(result.path);
+                res.writeHead(200, {
+                    'Content-Type': result.mime,
+                    'Content-Length': stat.size
+                });
+                var readStream = fs.createReadStream(result.path);
+                readStream.pipe(res);
+                readStream.on('end', function() {
+                    console.log('readSteream end');
+                });
+            }
+        })
+});
+
 library.get('/play/:id', function(req, res, next) {
     console.log('play');
     req.collection.findOne({ _id: req.params.id },
@@ -68,7 +95,16 @@ library.get('/play/:id', function(req, res, next) {
             if(!result) {
                 res.status(404).send('Sorry! Can\'t find it.');
             } else {
-                res.sendFile(result.path, null, function (err) {
+                var fs = require('fs')
+                stat = fs.statSync(result.path);
+                var options = {
+                    headers: {
+                        'Content-Type': result.mime,
+                        'Content-Length': stat.size
+                    }
+                };
+
+                res.sendFile(result.path, options, function (err) {
                     if (err) {
                         console.log(err);
                         res.status(err.status).end();
