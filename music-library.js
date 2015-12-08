@@ -57,7 +57,28 @@ library.get('/tracks/:id', function(req, res, next) {
         })
 });
 
-library.get('/stream/:id', function(req, res, next) {
+//FIXME - investigate settings, etc.
+function transcode(file) {
+    var spawn = require('child_process').spawn
+
+    var decode = spawn('flac', [
+        '--decode',
+        '--stdout',
+        file
+    ])
+
+    var encode = spawn('lame', [
+        '-V0',
+        '-',
+        '-'
+    ])
+
+    decode.stdout.pipe(encode.stdin)
+
+    return encode
+}
+
+library.get('/play/:id', function(req, res, next) {
     console.log('stream');
     req.collection.findOne({ _id: req.params.id },
         function(e, result) {
@@ -72,10 +93,17 @@ library.get('/stream/:id', function(req, res, next) {
                 var fs = require('fs')
                 stat = fs.statSync(result.path);
                 res.writeHead(200, {
-                    'Content-Type': result.mime,
+                    'Content-Type': 'audio/mpeg',
                     'Content-Length': stat.size
                 });
-                var readStream = fs.createReadStream(result.path);
+                var readStream;
+                if(-1 === result.mime.indexOf('mpeg')) {
+                    console.log('not an mpeg file, will transcode ', result);
+
+                    readStream = transcode(result.path).stdout;
+                } else {
+                    readStream = fs.createReadStream(result.path);
+                }
                 readStream.pipe(res);
                 readStream.on('end', function() {
                     console.log('readSteream end');
@@ -84,7 +112,7 @@ library.get('/stream/:id', function(req, res, next) {
         })
 });
 
-library.get('/play/:id', function(req, res, next) {
+library.get('/download/:id', function(req, res, next) {
     console.log('play');
     req.collection.findOne({ _id: req.params.id },
         function(e, result) {
@@ -113,6 +141,7 @@ library.get('/play/:id', function(req, res, next) {
                         console.log('Sent:', result.path);
                     }
                 });
+
             }
         })
 });
