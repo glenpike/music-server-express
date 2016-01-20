@@ -1,9 +1,8 @@
 var fs = require('fs');
 var commandLineArgs = require('command-line-args');
 var ff = require('./file-finder.js');
-var Promise = require("es6-promise").Promise;
+var Promise = require("bluebird");
 var mediaDb = require('./media-db.js');
-var async = require('async');
 var mm = require('musicmetadata');
 
 //TODO - make the media-file meta-parsers pluggable so that each one
@@ -12,141 +11,98 @@ var mm = require('musicmetadata');
 //getDataAndUpdate time
 
 function cleanDB() {
-    return new Promise(function(resolve, reject) {
-        mediaDb.deleteAllMediaItems(function(err, results) {
-            debug('deleteAllMediaItems ', arguments);
-            if(err) {
-                reject(err);
-            }
-            resolve(results);
-        });
-    });
+    return Promise.promisify(mediaDb.deleteAllMediaItems)();
 }
 
 function findFiles(path) {
     var acceptedFiles = ['wmv','mpg','mp3','m4a','ogg','flac','wav'];
     var simpleExtFilter = ff.getSimpleExtFilter(acceptedFiles);
 
-    return new Promise(function(resolve, reject) {
-        ff.findFiles(dir, simpleExtFilter, function(err, results) {
-            if(err) {
-                reject(err);
-            }
-            resolve(results);
-        });
-    });
+    return Promise.promisify(ff.findFiles)(dir, simpleExtFilter);
 }
-
 
 function addFilesToDB(files) {
-    return new Promise(function(resolve, reject) {
-        try {
-            var errors = [];
-            var added = [];
+    var errors = [],
+        queued = [], parallel = 10;
 
-            //Create a queue 'worker' function which processes each item
-            //we add to the queue
-            function fileWorker(task, callback) {
-                mediaDb.createMediaItem(task.file, function(err, wasAdded) {
-                    if(err) {
-                        errors.push({
-                            file: task.file.path,
-                            error: err
-                        });
-                    } else if(wasAdded) {
-                        added.push(task.file);
-                    }
-                    callback(err);
+    var createMediaItem = Promise.promisify(mediaDb.createMediaItem);
+
+    //http://spion.github.io/promise-nuggets/16-map-limit.html
+    var mediaItemPromises = files.map(function(file) {
+
+        var limit = Math.max(0, queued.length - parallel + 1);
+
+        var mediaItem = Promise.some(queued, limit)
+            .then(function() {
+                //will return an existing or newly created item
+                return createMediaItem(file);
+            })
+            .catch(function(err) {
+                errors.push({
+                    file: task.file.path,
+                    error: err
                 });
-            }
+            });
 
-            var q = async.queue(fileWorker, 10);
+        queued.push(mediaItem);
 
-            q.pause();
-
-            for(var i = 0;i < files.length;i++) {
-                q.push({file: files[i]});
-            }
-
-            q.drain = function() {
-                resolve({files: files, errors: errors, added: added});
-            };
-
-            q.resume();
-        } catch(e) {
-            //overkill?  We may have DB errors!
-            reject(e);
-        }
+        return mediaItem;
     });
+    return Promise.all(mediaItemPromises).then(function(files) {
+        debug('addFilesToDB complete ', files);
+        return {files: files, errors: errors, added: files }
+    });
+    //We don't catch anything here - allow to bubble up - need tests?
 }
-
 function updateMediaInfo(files) {
-    return new Promise(function(resolve, reject) {
-        try {
-            var errors = [];
-            var filesWithMetadata = 0;
-            var filesUpdated = []
 
-            //TODO - still "smell" around the whole errors / callback thing.
-            function getDataAndUpdate(task, taskCallback) {
-                async.waterfall([
-                    function(callback) {
-                        mm(fs.createReadStream(task.file.path), function (err, metadata) {
-                            if(err) {
-                                errors.push({
-                                    file: task.file.path,
-                                    error: err
-                                });
-                                callback(err);
-                            } else if(metadata) {
-                                filesWithMetadata++;
-                                callback(null, task.file, metadata);
-                            }
+    var errors = [];
+    var filesWithMetadata = 0;
+    var filesUpdated = [];
 
-                        });
-                    },
-                    function(file, metadata, callback) {
-                        mediaDb.updateMetadata(file, metadata, function(err, wasUpdated) {
-                            if(err) {
-                                errors.push({
-                                    file: task.file.path,
-                                    error: err
-                                });
-                                callback(err);
-                            } else if(wasUpdated) {
-                                filesUpdated.push(task.file);
-                                callback(null, task.file);
-                            }
+    var updateMetadata = Promise.promisify(mediaDb.updateMetadata);
+    var mmAsync = Promise.promisify(mm);
 
-                        });
+    var queued = [], parallel = 10;
+
+    //Duplication - can factor generic queue into function
+    var updateItemPromises = files.map(function(file) {
+
+        var limit = Math.max(0, queued.length - parallel + 1);
+
+        var updateItem = Promise.some(queued, limit)
+            .then(function() {
+                return mmAsync(fs.createReadStream(file.path))
+                .then(function(metadata) {
+                    filesWithMetadata++;
+                    return updateMetadata(file, metadata);
+                })
+                .then(function(wasUpdated) {
+                    if(wasUpdated) {
+                        filesUpdated.push(file);
                     }
-
-                ], function(err, result) {
-                    //debug('waterfall main ', err, result);
-                    taskCallback(err)
+                    return file;
+                })
+                .catch(function(err) {
+                    var error = {
+                        file: file.path,
+                        error: err
+                    }
+                    errors.push(error);
+                    debug('updateItem error ', error);
                 });
-            }
+            });
 
-            var q = async.queue(getDataAndUpdate, 10);
-
-            q.pause();
-
-            for(var i = 0;i < files.length;i++) {
-                q.push({file: files[i]});
-            }
-
-            q.drain = function() {
-                resolve({
-                    files: files,
-                    errors: errors,
-                    filesWithMetadata: filesWithMetadata,
-                    filesUpdated:filesUpdated
-                });
-            };
-
-            q.resume();
-        } catch(e) {
-            reject(e);
+        queued.push(updateItem);
+        return updateItem;
+    });
+    return Promise.all(updateItemPromises).then(function(files) {
+        debug('updateMediaInfo complete ');
+        return {
+            files: files,
+            errors: errors,
+            filesWithMetadata: filesWithMetadata,
+            filesUpdated:filesUpdated
         }
     });
 }
@@ -179,6 +135,9 @@ function debug() {
 //TODO - what happens when files are deleted on disk?
 try {
     var dir = options.path ? options.path : '/media/linmedia/Music/ogg/';
+
+    //TODO - can use async waterfall here...
+    //https://spion.github.io/promise-nuggets/12-doing-things-in-series.html
 
     //We only clean the DB if set, otherwise we resolve a "dummy" promise
     ((options.clean) ? cleanDB() : Promise.resolve(options))

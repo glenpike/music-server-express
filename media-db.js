@@ -27,6 +27,7 @@ function readMediaItem(hash, callback) {
 
 function createMediaItem(file, callback) {
     var hash = md5(file.path);
+
     readMediaItem(hash, function(err, result) {
         if(err) {
             console.log('createMediaItem - readMediaItem error', err);
@@ -34,14 +35,24 @@ function createMediaItem(file, callback) {
         }
         //console.log('createMediaItem - readMediaItem result ', result);
         if(result) {
-            return callback(null, false);
+            return callback(null, result);
         }
-        file._id = hash;
-        collection.insert(file, {}, function(err, result) {
+        //Simple, fast, flat copy - assuming this never changes!
+        var toInsert = {
+            _id:hash,
+            ext: file.ext,
+            path: file.path,
+            mime: file.mime
+        };
+
+        collection.insert(toInsert, {}, function(err, result) {
             if(err) {
                 return callback(err);
             }
-            return callback(null, true);
+
+            //we should care more about the result in case something happened!
+            //console.log('insert result ', result);
+            return callback(null, toInsert);
         });
     });
 }
