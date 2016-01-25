@@ -1,14 +1,17 @@
 var express = require('express');
 var mongoskin = require('mongoskin');
-var dbConf = require('./config/database');
 
-var db = mongoskin.db(dbConf.url, {safe:true});
-//var collection = db.collection('files');
+var db, collectionName;
 
 var library = express.Router();
 
+library.configure = function(dbConf) {
+    db = mongoskin.db(dbConf.url, {safe:true});
+    collectionName = dbConf.collection;
+}
+
 library.use('/', function(req, res, next) {
-    req.collection = db.collection('files');
+    req.collection = db.collection(collectionName);
     return next();
 });
 
@@ -106,7 +109,7 @@ library.get('/play/:id', function(req, res, next) {
                 }
                 readStream.pipe(res);
                 readStream.on('end', function() {
-                    console.log('readSteream end');
+                    console.log('readStream end');
                 });
             }
         })

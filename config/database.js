@@ -1,3 +1,4 @@
 module.exports = {
-    'url' : 'mongodb://@localhost:27017/media-store'
+    url : 'mongodb://@localhost:27017/media-store',
+    collection: 'files'
 }

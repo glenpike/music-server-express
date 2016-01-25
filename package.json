@@ -1,8 +1,8 @@
 {
-  "name": "node-spikes",
-  "version": "0.0.0",
+  "name": "music-server",
+  "version": "0.0.1",
   "description": "",
-  "main": "music-tree.js",
+  "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -28,6 +28,7 @@
     "chai-things": "^0.2.0",
     "expect": "^1.9.0",
     "mocha": "^2.2.5",
-    "should": "^7.0.4"
+    "should": "^7.0.4",
+    "superagent": "^1.7.1"
   }
 }

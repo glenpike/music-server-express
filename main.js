@@ -18,7 +18,7 @@ function findFiles(path) {
     var acceptedFiles = ['wmv','mpg','mp3','m4a','ogg','flac','wav'];
     var simpleExtFilter = ff.getSimpleExtFilter(acceptedFiles);
 
-    return Promise.promisify(ff.findFiles)(dir, simpleExtFilter);
+    return Promise.promisify(ff.findFiles)(path, simpleExtFilter);
 }
 
 function addFilesToDB(files) {
@@ -111,7 +111,8 @@ var cli = commandLineArgs([
     { name: "help", alias: "h", type: Boolean, description: 'Display this usage guide'},
     { name: "verbose", alias: "v", type: Boolean, description: 'Lots of output'},
     { name: "path", alias: 'p', type: String, defaultOption: true, description: 'A file system path to search for files' },//, multiple: true },
-    { name: "clean", alias: "c", type: Boolean, description: 'If set, will clean the database first.' }
+    { name: "clean", alias: "c", type: Boolean, description: 'If set, will clean the database first.' },
+    { name: "test", alias: "t", type: Boolean, description: 'Use the test configuration'}
 ]);
 var options = cli.parse();
 
@@ -131,13 +132,26 @@ function debug() {
         console.log.apply(this, arguments);
     }
 }
-//TODO - cross reference albums and other metadata.
-//TODO - what happens when files are deleted on disk?
-try {
-    var dir = options.path ? options.path : '/media/linmedia/Music/ogg/';
 
-    //TODO - can use async waterfall here...
-    //https://spion.github.io/promise-nuggets/12-doing-things-in-series.html
+function configureDB() {
+    var dbConf;
+
+    if(options.test) {
+        dbConf = require('./config/test-database');
+    } else {
+        dbConf = require('./config/database');
+    }
+    mediaDb.configure(dbConf);
+}
+
+function start() {
+    configureDB();
+    //TODO - cross reference albums and other metadata.
+    //TODO - what happens when files are deleted on disk?
+    //'/media/linmedia/Music/ogg/'
+    var path = './tests/test-files';
+
+    var dir = options.path ? options.path : path;
 
     //We only clean the DB if set, otherwise we resolve a "dummy" promise
     ((options.clean) ? cleanDB() : Promise.resolve(options))
@@ -159,6 +173,6 @@ try {
         debug('error ', error);
         process.exit();
     });
-} catch(e) {
-    console.error('eek ', e.stack);
 }
+
+start();

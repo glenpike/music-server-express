@@ -1,8 +1,12 @@
 var mongoskin = require('mongoskin');
-var dbConf = require('./config/database');
 var md5 = require('md5');
-var db = mongoskin.db(dbConf.url, {safe:true});
-var collection = db.collection('files');
+var db, collection;
+
+function configure(dbConf) {
+    db = mongoskin.db(dbConf.url, {safe:true});
+    collection = db.collection(dbConf.collection);
+}
+
 
 //Very simplistic CRUD wrapper for database
 //Does not take advantage of mongo / mongoskin features much.
@@ -97,6 +101,7 @@ function deleteAllMediaItems(callback) {
     });
 }
 module.exports = {
+    configure: configure,
     createMediaItem: createMediaItem,
     readMediaItem: readMediaItem,
     readMediaItems: readMediaItems,
