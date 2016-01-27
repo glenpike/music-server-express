@@ -11,43 +11,42 @@ var serverURL = 'http://localhost:8081/library/';
 var fs = require('fs');
 var testData = JSON.parse(fs.readFileSync('./data/files.json')),
     testIds,
-    albums = [],
-    artists = [],
-    genres = [];
+    uniqueAlbums = [],
+    uniqueArtists = [],
+    uniqueGenres = [];
 
 var invalidId = 'no-such-thing';
+
+function uniqueItems(src, target) {
+    src.forEach(function(item) {
+        if(-1 === target.indexOf(item)) {
+            target.push(item);
+        }
+    });
+}
 
 //Map the expected data to various arrays to make it easier to test.
 testIds = testData.map(function(item) {
     if(item.metadata) {
         var album = item.metadata.album;
-        if(album && -1 === albums.indexOf(album)) {
-            albums.push(album);
+        if(album && -1 === uniqueAlbums.indexOf(album)) {
+            uniqueAlbums.push(album);
         }
-        // Fixme - only one genre
-        var genre = item.metadata.genre;
-        if(genre && genre.length) {
-            genre.forEach(function(g) {
-                if(-1 === genres.indexOf(g)) {
-                    genres.push(g);
-                }
-            });
+        var genres = item.metadata.genre;
+        if(genres && genres.length) {
+            uniqueItems(genres, uniqueGenres);
         }
-        var artist = item.metadata.artist;
-        if(artist && artist.length) {
-            artist.forEach(function(a) {
-                if(-1 === artists.indexOf(a)) {
-                    artists.push(a);
-                }
-            });
+        var artists = item.metadata.artist;
+        if(artists && artists.length) {
+            uniqueItems(artists, uniqueArtists);
         }
     }
     return item._id
 });
 
-albums.sort();
-artists.sort();
-genres.sort();
+uniqueAlbums.sort();
+uniqueArtists.sort();
+uniqueGenres.sort();
 
 describe('music-server library API tests', function() {
 
@@ -64,7 +63,7 @@ describe('music-server library API tests', function() {
     });
 
     it('retrieves info for a single track', function(done) {
-        //metadata for wav is not consistently there
+        //metadata for wav is not consistent
         var testTrack = testData.find(function(track) {
             return track.ext != 'wav';
         });
@@ -90,9 +89,9 @@ describe('music-server library API tests', function() {
         agent.get(serverURL + 'albums')
             .end(function(e, res) {
                 expect(e).to.not.exist;
-                expect(res.body.length).to.equal(albums.length)
+                expect(res.body.length).to.equal(uniqueAlbums.length)
                 res.body.forEach(function(album, index) {
-                    expect(albums[index]).to.equal(album._id);
+                    expect(uniqueAlbums[index]).to.equal(album._id);
                     expect(album.num_tracks).to.be.above(0);
                 })
                 done()
@@ -100,7 +99,7 @@ describe('music-server library API tests', function() {
     });
 
     it('retrieves track list for an album', function(done) {
-        var album = albums[0],
+        var album = uniqueAlbums[0],
 
             testAlbum = testData.filter(function(track) {
                 if(!track.metadata) {
@@ -134,25 +133,35 @@ describe('music-server library API tests', function() {
             })
     });
 
-    it('retrieves a list of genres', function(done) {
-        agent.get(serverURL + 'genres')
+    function testList(type, expected, done) {
+        agent.get(serverURL + type)
             .end(function(e, res) {
                 expect(e).to.not.exist;
-                expect(res.body.length).to.equal(genres.length)
-                var totalTracks = 0;
-                res.body.forEach(function(genre, index) {
-                    expect(genres).to.contain(genre._id);
-                    expect(genre.num_tracks).to.be.above(0);
-                    //totalTracks += genre.num_tracks;
+                expect(res.body.length).to.equal(expected.length)
+                res.body.forEach(function(item, index) {
+                    expect(expected).to.contain(item._id);
+                    expect(item.num_tracks).to.be.above(0);
                 })
-                //Doesn't work because wav's have no meta-data.
-                //expect(totalTracks).to.equal(testData.length)
                 done()
             })
+    }
+
+    function testInvalidItem(type, done) {
+        agent.get(serverURL + type + '/' + invalidId)
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(200)
+                expect(res.body.length).to.equal(0)
+                done()
+            })
+    }
+
+    it('retrieves a list of genres', function(done) {
+        testList('genres', uniqueGenres, done);
     });
 
     it('retrieves track list for a genre', function(done) {
-        var genre = genres[0],
+        var genre = uniqueGenres[0],
 
             testGenre = testData.filter(function(track) {
                 if(!track.metadata) {
@@ -179,26 +188,11 @@ describe('music-server library API tests', function() {
     });
 
     it('behaves correctly for getting an invalid genre', function(done) {
-        agent.get(serverURL + 'genres/' + invalidId)
-            .end(function(e, res) {
-                expect(e).to.not.exist;
-                expect(res.status).to.equal(200)
-                expect(res.body.length).to.equal(0)
-                done()
-            })
+        testInvalidItem('genres', done);
     });
 
     it('retrieves a sorted list of artists', function(done) {
-        agent.get(serverURL + 'artists')
-            .end(function(e, res) {
-                expect(e).to.not.exist;
-                expect(res.body.length).to.equal(artists.length)
-                res.body.forEach(function(artist, index) {
-                    expect(artists[index]).to.equal(artist._id);
-                    expect(artist.num_tracks).to.be.above(0);
-                })
-                done()
-            })
+        testList('artists', uniqueArtists, done);
     });
 
     it('retrieves track list for an artist', function(done) {
@@ -229,13 +223,7 @@ describe('music-server library API tests', function() {
     });
 
     it('behaves correctly for getting an invalid artist', function(done) {
-        agent.get(serverURL + 'artists/' + invalidId)
-            .end(function(e, res) {
-                expect(e).to.not.exist;
-                expect(res.status).to.equal(200)
-                expect(res.body.length).to.equal(0)
-                done()
-            })
+        testInvalidItem('artists', done);
     });
 
     it('retrieves a list of all track data', function(done) {
@@ -250,59 +238,70 @@ describe('music-server library API tests', function() {
             })
     });
 
-    it('can stream and transcode a single track as mp3', function(done) {
+    function testValidTrackAction(type, ext, done) {
         var testTrack = testData.find(function(track) {
-            return track.ext == 'ogg';
+            return track.ext == ext;
         });
+        var expectedMime = 'audio/mpeg';
+        if('download' === type) {
+            expectedMime = testTrack.mime;
+        }
+
         var stat = fs.statSync(testTrack.path);
-        agent.get(serverURL + 'play/' + testTrack._id)
+        agent.get(serverURL + type + '/' + testTrack._id)
             .end(function(e, res) {
                 expect(e).to.not.exist;
                 expect(res.status).to.equal(200)
                 expect(res.headers).to.include.keys('content-type')
-                expect(res.headers['content-type']).to.equal('audio/mpeg')
+                expect(res.headers['content-type']).to.equal(expectedMime)
                 expect(res.headers).to.include.keys('content-length')
                 expect(+res.headers['content-length']).to.equal(stat.size)
 
                 done()
             })
+    }
+
+    it('can stream and transcode a single ogg track as mp3', function(done) {
+        testValidTrackAction('play', 'ogg', done);
+    });
+    it('can stream and transcode a single wav track as mp3', function(done) {
+        testValidTrackAction('play', 'wav', done);
+    });
+    it('can stream and transcode a single flac track as mp3', function(done) {
+        testValidTrackAction('play', 'flac', done);
+    });
+    it('can stream a single mp3 track as mp3', function(done) {
+        testValidTrackAction('play', 'mp3', done);
     });
 
-    it('behaves correctly for playing an invalid track', function(done) {
-        agent.get(serverURL + 'play/' + invalidId)
+    function testInvalidTrackAction(type, done) {
+        agent.get(serverURL + type + '/' + invalidId)
             .end(function(e, res) {
                 expect(e).to.exist;
                 expect(e.status).to.equal(404)
                 expect(res.text).to.equal('Sorry! Can\'t find it.')
                 done()
             })
+    }
+
+    it('behaves correctly for playing an invalid track', function(done) {
+        testInvalidTrackAction('play', done);
     });
 
-    it('can download a single track', function(done) {
-        var testTrack = testData.find(function(track) {
-            return track.ext == 'wav';
-        });
-        var stat = fs.statSync(testTrack.path);
-        agent.get(serverURL + 'download/' + testTrack._id)
-            .end(function(e, res) {
-                expect(e).to.not.exist;
-                expect(res.status).to.equal(200)
-                expect(res.headers).to.include.keys('content-type')
-                 expect(res.headers['content-type']).to.equal(testTrack.mime)
-                expect(res.headers).to.include.keys('content-length')
-                expect(+res.headers['content-length']).to.equal(stat.size)
-
-                done()
-            })
+    it('can download a single ogg track', function(done) {
+        testValidTrackAction('download', 'ogg', done);
+    });
+    it('can download a single wav track', function(done) {
+        testValidTrackAction('download', 'wav', done);
+    });
+    it('can download a single flac track', function(done) {
+        testValidTrackAction('download', 'flac', done);
+    });
+    it('can download a single mp3 track', function(done) {
+        testValidTrackAction('download', 'mp3', done);
     });
 
     it('behaves correctly for downloading an invalid track', function(done) {
-        agent.get(serverURL + 'download/' + invalidId)
-            .end(function(e, res) {
-                expect(e).to.exist;
-                expect(e.status).to.equal(404)
-                expect(res.text).to.equal('Sorry! Can\'t find it.')
-                done()
-            })
+        testInvalidTrackAction('download', done);
     });
 });
