@@ -197,8 +197,9 @@ library.get('/albums', function(req, res, next) {
     console.log('albums');
     req.collection.aggregate([
         { $match: { metadata: { $exists: true }, 'metadata.album': { $ne: ""} } },
-        { $project: { album: "$metadata.album" } },
-        {   $group : {_id : "$album", num_tracks: { $sum: 1 } } },
+        { $project: { album: "$metadata.album", artist: "$metadata.artist" } },
+        //This isn't correct - it's returning the artist of the first track in the album - for Various, this is wrong.
+        {   $group : {_id : "$album", num_tracks: { $sum: 1 }, artist: { $first: "$artist" } } },
         { $sort: { _id: 1 } }
     ],
     function(e, results) {
@@ -217,6 +218,8 @@ library.get('/albums/:id', function(req, res, next) {
             if(e) {
                 return next(e)
             }
+            //Might be nice to group this into an object with
+            //album name, artist, num tracks, then all the tracks.
             res.send(parseTracks(results));
         });
 });
