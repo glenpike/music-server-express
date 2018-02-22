@@ -15,12 +15,88 @@ library.use('/', function(req, res, next) {
     return next();
 });
 
+let pagedRequestInfo = null;
+function parsePagedRequest(req) {
+    if(!pagedRequestInfo) {
+        var query = req.query || {};
+        var limit = Number.parseInt(query.limit) || 0;
+        var page = Number.parseInt(query.page) || 0;
+
+        if(Number.isNaN(limit)) {
+            limit = 0;
+        }
+        if(Number.isNaN(page)) {
+            page = 0;
+        }
+        pagedRequestInfo = { limit: limit, page: page };
+    }
+
+    return pagedRequestInfo;
+}
+
+function clearPagedRequestInfo() {
+    pagedRequestInfo = null;
+}
+
+function getPagedResults(req, cursor) {
+    let { limit, page } = parsePagedRequest(req);
+    let pagedCursor = cursor;
+
+    if(limit) {
+        if(page) {
+            pagedCursor = pagedCursor.skip(page * limit);
+        }
+        pagedCursor = pagedCursor.limit(limit);
+    }
+
+    return pagedCursor;
+}
+function sendResponse(req, res, results) {
+    let { limit, page } = parsePagedRequest(req);
+
+    let response = {
+        data: results,
+        paging: {
+            limit: limit,
+            page: page,
+            count: results.length,
+            //total: total
+            //need to get the total records - cache???
+            //http://stackoverflow.com/questions/20348093/mongodb-aggregation-how-to-get-total-records-count
+        }
+    }
+
+    res.send(response);
+
+    clearPagedRequestInfo();
+
+}
+
+function responseWrapper(req, res, entries, count, total) {
+    let { limit, page } = parsePagedRequest(req);
+
+    let response = {
+        data: entries,
+        paging: {
+            limit: limit,
+            page: page,
+            count: count,
+            total: total
+        }
+    }
+
+    res.send(response);
+
+    clearPagedRequestInfo();
+}
 
 library.get('/tracks', function(req, res, next) {
     console.log('tracks');
     var entries = [];
-    req.collection.find({}, {_id: 1, path: 1, metadata: 1})
-        .toArray(function(e, results) {
+    var cursor = req.collection.find({}, {_id: 1, path: 1, metadata: 1});
+
+    cursor.count(false, function(err, count) {
+        getPagedResults(req, cursor).toArray(function(e, results) {
             if(e) {
                 return next(e)
             }
@@ -40,9 +116,11 @@ library.get('/tracks', function(req, res, next) {
                 entries.push(data);
 
             });
-            res.send(entries);
+            responseWrapper(req, res, entries, entries.length, count);
         })
+    })
 });
+
 library.get('/tracks/:id', function(req, res, next) {
     console.log('get ');
     req.collection.findOne({ _id: req.params.id },
@@ -193,19 +271,47 @@ function parseTracks(results) {
     return tracks;
 }
 
+function getPagedAggregate(req, aggregate) {
+    var query = req.query || {};
+    var limit = Number.parseInt(query.limit) || 0;
+    var page = Number.parseInt(query.page) || 0;
+    var pagedAggregate = [];
+
+    if(Number.isNaN(limit)) {
+        limit = 0;
+    }
+    if(Number.isNaN(page)) {
+        page = 0;
+    }
+
+    if(limit) {
+        if(page) {
+            pagedAggregate.push({ $skip: (page * limit) });
+        }
+        pagedAggregate.push({ $limit: limit });
+    }
+    var resultAggregate = aggregate.concat(pagedAggregate);
+    console.log('resultAggregate ', resultAggregate);
+    return resultAggregate;
+}
+
 library.get('/albums', function(req, res, next) {
     console.log('albums');
-    req.collection.aggregate([
+    var aggregate = [
         { $match: { metadata: { $exists: true }, 'metadata.album': { $ne: ""} } },
         { $project: { album: "$metadata.album" } },
-        {   $group : {_id : "$album", num_tracks: { $sum: 1 } } },
-        { $sort: { _id: 1 } }
-    ],
+        { $group : {_id : "$album", num_tracks: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+        { $group: { _id: null, albums: { $sum: 1}, results: { $push: '$$ROOT' }}},
+        { $project: { total: '$albums', albums: { $slice: [ '$results', 10, 20 ]}}}
+    ];
+
+    req.collection.aggregate(aggregate, //getPagedAggregate(req, aggregate),
     function(e, results) {
         if(e) {
             return next(e)
         }
-        res.send(results);
+        sendResponse(req, res, results);
     });
 });
 
@@ -223,18 +329,20 @@ library.get('/albums/:id', function(req, res, next) {
 
 library.get('/artists', function(req, res, next) {
     console.log('artists');
-    req.collection.aggregate([
+    var aggregate = [
         { $match: { metadata: { $exists: true } } },
         { $project: { artist: "$metadata.artist" } },
         { $unwind : "$artist" },
         {   $group : {_id : "$artist", num_tracks: { $sum: 1 } } },
         { $sort: { _id: 1 } }
-    ],
+    ];
+
+    req.collection.aggregate(getPagedAggregate(req, aggregate),
     function(e, results) {
         if(e) {
             return next(e)
         }
-        res.send(results);
+        sendResponse(req, res, results);
     });
 });
 
@@ -252,18 +360,19 @@ library.get('/artists/:id', function(req, res, next) {
 
 library.get('/genres', function(req, res, next) {
     console.log('genres');
-    req.collection.aggregate([
+    var aggregate = [
         { $match: { metadata: { $exists: true }, 'metadata.genre': { $ne: null} } },
         { $project: { genre: "$metadata.genre" } },
         { $unwind : "$genre" },
         { $group : {_id : "$genre", num_tracks: { $sum: 1 } } },
         { $sort: { "num_tracks": -1 } }
-    ],
+    ];
+    req.collection.aggregate(getPagedAggregate(req, aggregate),
     function(e, results) {
         if(e) {
             return next(e)
         }
-        res.send(results);
+        sendResponse(req, res, results);
     });
 });
 
