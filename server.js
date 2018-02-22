@@ -35,11 +35,7 @@ library.configure(dbConf);
 
 var cors = require('express-cors')
 
-app.use(cors({
-    allowedOrigins: [
-        'localhost:8100', '192.168.0.3', '192.168.0.4'
-    ]
-}))
+app.use(cors())
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -47,7 +43,6 @@ app.use(morgan('dev'));
 
 app.use('/library', library);
 app.set('json spaces', 2);
-app.listen(8081);
+app.listen(process.env.SERVER_PORT || 8081);
 
 module.exports = app;
-
