@@ -1,0 +1,13 @@
+{
+    "plugins": ["prettier", "import"],
+    "rules": {
+        "prettier/prettier": "error",
+        "import/prefer-default-export": "off",
+        "no-var": "error",
+        "prefer-const": "warn",
+    },
+    "parserOptions": {
+        "ecmaVersion": 6,
+        "sourceType": "module",
+    }
+}

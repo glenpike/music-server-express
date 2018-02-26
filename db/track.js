@@ -1,0 +1,101 @@
+import mongoskin from 'mongoskin';
+import md5 from 'md5';
+import { collection } from './';
+
+//Very simplistic CRUD wrapper for database
+//Does not take advantage of mongo / mongoskin features much.
+
+export const readTracks = (params, callback) => {
+    const query = params || {};
+    collection.find(query, (err, result) => {
+        if (err) {
+            return callback(err);
+        }
+        return callback(null, result.toArray());
+    });
+};
+
+export const readTrack = (hash, callback) => {
+    collection.findOne({ _id: hash }, (err, result) => {
+        if (err) {
+            return callback(err);
+        }
+        return callback(null, result);
+    });
+};
+
+export const createTrack = (file, callback) => {
+    const hash = md5(file.path);
+
+    readTrack(hash, (err, result) => {
+        if (err) {
+            console.log('createTrack - readTrack error', err);
+            return callback(err);
+        }
+        if (result) {
+            return callback(null, result);
+        }
+        const { ext, path, mime } = file;
+        //Simple, fast, flat copy - assuming this never changes!
+        const toInsert = {
+            _id: hash,
+            ext,
+            path,
+            mime,
+        };
+
+        collection.insert(toInsert, {}, (err, result) => {
+            if (err) {
+                console.log('createTrack - insert error');
+                return callback(err);
+            }
+
+            //we should care more about the result in case something happened!
+            return callback(null, toInsert);
+        });
+    });
+};
+
+export const updateMetadata = (file, metadata, callback) => {
+    readTrack(file._id, (err, result) => {
+        if (err) {
+            console.log('updateMetadata - readTrack error', err);
+            return callback(err);
+        }
+        //console.log('updateMetadata - ', file.path, ' metadata ', metadata);
+        if (!result) {
+            return callback(null, false);
+        }
+        collection.update(
+            { _id: file._id },
+            { $set: { metadata: metadata } },
+            (err, result) => {
+                if (err) {
+                    return callback(err);
+                }
+                file.metadata = metadata;
+                return callback(null, true);
+            }
+        );
+    });
+};
+
+export const deleteTrack = (file, callback) => {
+    //is this a hash or an id?
+    const hash = md5(file.path);
+    collection.remove({ _id: hash }, (err, result) => {
+        if (err) {
+            return callback(err);
+        }
+        return callback(null, true);
+    });
+};
+
+export const deleteAllTracks = (callback) => {
+    collection.remove({}, (err, result) => {
+        if (err) {
+            return callback(err);
+        }
+        return callback(null, true);
+    });
+};
