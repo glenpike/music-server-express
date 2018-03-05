@@ -1,30 +1,29 @@
-// import mongoose from 'mongoose';
+import commandLineArgs from 'command-line-args';
+import commandLineUsage from 'command-line-usage';
 import app from '../config/express';
 import config from '../config/env';
-import commandLineArgs from 'command-line-args';
 
-const cli = commandLineArgs([
+const options = commandLineArgs([
     {
         name: 'help',
         alias: 'h',
         type: Boolean,
         description: 'Display this usage guide',
     },
-    {
-        name: 'test',
-        alias: 't',
-        type: Boolean,
-        description: 'Use the test configuration',
-    },
 ]);
-const options = cli.parse();
 
 if (options.help) {
-    const usage = cli.getUsage({
-        title: 'server',
-        description: 'Music Server API',
-        footer: 'Project home: [underline]{https://github.com/me/my-app}',
-    });
+    const usage = commandLineUsage([
+        {
+            header: 'Music Server API',
+            content: `Express + MondoDB based REST API for viewing tracks/albums/artists/genres
+ stored in a db`,
+        },
+        {
+            header:
+                'Project home: [underline]{https://github.com/glenpike/music-server-express}',
+        },
+    ]);
 
     console.log(usage);
     process.exit();

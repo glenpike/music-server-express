@@ -33,15 +33,16 @@ export const createTrack = (file, callback) => {
             return callback(err);
         }
         if (result) {
-            return callback(null, result);
+            return callback(null, { error: 'track exists' });
         }
-        const { ext, path, mime } = file;
+        const { ext, path, mime, metadata = {} } = file;
         //Simple, fast, flat copy - assuming this never changes!
         const toInsert = {
             _id: hash,
             ext,
             path,
             mime,
+            metadata,
         };
 
         collection.insert(toInsert, {}, (err, result) => {
@@ -62,10 +63,11 @@ export const updateMetadata = (file, metadata, callback) => {
             console.log('updateMetadata - readTrack error', err);
             return callback(err);
         }
-        //console.log('updateMetadata - ', file.path, ' metadata ', metadata);
+        // console.log('updateMetadata - ', file._id, ' metadata ', metadata);
         if (!result) {
-            return callback(null, false);
+            return callback(null, { error: `track doesn't exist` });
         }
+        const track = result;
         collection.update(
             { _id: file._id },
             { $set: { metadata: metadata } },
@@ -73,8 +75,8 @@ export const updateMetadata = (file, metadata, callback) => {
                 if (err) {
                     return callback(err);
                 }
-                file.metadata = metadata;
-                return callback(null, true);
+                track.metadata = metadata;
+                return callback(null, track);
             }
         );
     });

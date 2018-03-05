@@ -1,12 +1,13 @@
 import chai, { expect } from 'chai';
 import chaiThings from 'chai-things';
+import md5 from 'md5';
+import supertest from 'supertest';
+import app from '../config/express';
+import db from '../db/index';
 
 chai.use(chaiThings);
 
-const superagent = require('superagent'),
-    agent = superagent.agent();
-
-const serverURL = 'http://localhost:3000/api/';
+const serverURL = '/api/';
 
 const path = require('path');
 const fs = require('fs');
@@ -52,8 +53,23 @@ uniqueArtists.sort();
 uniqueGenres.sort();
 
 describe('music-server library API tests', function() {
+    let request = null;
+    let server = null;
+    before(function(done) {
+        server = app.listen(done);
+        request = supertest.agent(server);
+    });
+
+    after(function(done) {
+        server.close(() => {
+            db.close(() => {
+                done();
+            });
+        });
+    });
+
     it('retrieves a list of tracks', function(done) {
-        agent.get(serverURL + 'tracks').end(function(e, res) {
+        request.get(serverURL + 'tracks').end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(testData.length);
             res.body.forEach(function(track, index) {
@@ -68,24 +84,110 @@ describe('music-server library API tests', function() {
         const testTrack = testData.find(function(track) {
             return track.ext != 'wav';
         });
-        agent.get(serverURL + 'tracks/' + testTrack._id).end(function(e, res) {
-            expect(e).to.not.exist;
-            expect(res.body).to.deep.equal(testTrack);
-            done();
-        });
+        request
+            .get(serverURL + 'tracks/' + testTrack._id)
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.body).to.deep.equal(testTrack);
+                done();
+            });
+    });
+
+    it('behaves correctly for posting an invalid track', function(done) {
+        request
+            .post(serverURL + 'tracks/')
+            .send({ path: 'Blah', invalid: 'blah' })
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(400);
+                expect(res.body.status).to.equal('error');
+                expect(res.body.message).to.contain('missing required field');
+                done();
+            });
+    });
+
+    let testId = null;
+    const testFile = {
+        path: 'my-path.wav',
+        ext: 'wav',
+        mime: 'audio/x-wav',
+        metadata: {
+            title: 'Test File',
+            artist: ['Superrequest'],
+            album: 'Greatest Test',
+        },
+    };
+
+    it('behaves correctly for posting a valid track', function(done) {
+        request
+            .post(serverURL + 'tracks/')
+            .send(testFile)
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(201);
+                expect(res.body._id).to.exist;
+                testId = res.body._id;
+                expect(res.body).to.deep.include(testFile);
+                done();
+            });
+    });
+
+    it('behaves correctly for updating an invalid track', function(done) {
+        request
+            .patch(serverURL + 'tracks/invalidId')
+            .send({ path: 'Blah', invalid: 'blah' })
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(404);
+                expect(res.body.status).to.equal('error');
+                expect(res.body.message).to.contain(`track doesn't exist`);
+                done();
+            });
+    });
+
+    it('behaves correctly for updating a valid track', function(done) {
+        const updatedFile = {
+            metadata: {
+                title: 'Such Test',
+                artist: ['So shiny'],
+                album: 'Greatest Wow',
+            },
+        };
+        request
+            .patch(serverURL + 'tracks/' + testId)
+            .send(updatedFile)
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(200);
+                expect(res.body._id).to.exist;
+                expect(res.body.path).to.equal(testFile.path);
+                expect(res.body).to.deep.include(updatedFile);
+                done();
+            });
+    });
+
+    it('behaves correctly for deleting a valid track', function(done) {
+        request
+            .delete(serverURL + 'tracks/' + md5(testFile.path))
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(204);
+                expect(res.body).to.be.empty;
+                done();
+            });
     });
 
     it('behaves correctly for getting an invalid track', function(done) {
-        agent.get(serverURL + 'tracks/' + invalidId).end(function(e, res) {
-            expect(e).to.exist;
-            expect(e.status).to.equal(404);
+        request.get(serverURL + 'tracks/' + invalidId).end(function(e, res) {
+            expect(e).to.not.exist;
+            expect(res.status).to.equal(404);
             expect(res.text).to.equal("Sorry! Can't find it.");
             done();
         });
     });
 
     it('retrieves a sorted list of albums', function(done) {
-        agent.get(serverURL + 'albums').end(function(e, res) {
+        request.get(serverURL + 'albums').end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(uniqueAlbums.length);
             res.body.forEach(function(album, index) {
@@ -108,7 +210,7 @@ describe('music-server library API tests', function() {
             return a.metadata.track.no - b.metadata.track.no;
         });
 
-        agent.get(serverURL + 'albums/' + album).end(function(e, res) {
+        request.get(serverURL + 'albums/' + album).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.deep.equal(testAlbum.length);
             res.body.forEach(function(track, index) {
@@ -120,7 +222,7 @@ describe('music-server library API tests', function() {
     });
 
     it('behaves correctly for getting an invalid album', function(done) {
-        agent.get(serverURL + 'albums/' + invalidId).end(function(e, res) {
+        request.get(serverURL + 'albums/' + invalidId).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.status).to.equal(200);
             expect(res.body.length).to.equal(0);
@@ -129,7 +231,7 @@ describe('music-server library API tests', function() {
     });
 
     function testList(type, expected, done) {
-        agent.get(serverURL + type).end(function(e, res) {
+        request.get(serverURL + type).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(expected.length);
             res.body.forEach(function(item, index) {
@@ -141,7 +243,7 @@ describe('music-server library API tests', function() {
     }
 
     function testInvalidItem(type, done) {
-        agent.get(serverURL + type + '/' + invalidId).end(function(e, res) {
+        request.get(serverURL + type + '/' + invalidId).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.status).to.equal(200);
             expect(res.body.length).to.equal(0);
@@ -166,7 +268,7 @@ describe('music-server library API tests', function() {
                     return track._id;
                 });
 
-        agent.get(serverURL + 'genres/' + genre).end(function(e, res) {
+        request.get(serverURL + 'genres/' + genre).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.deep.equal(testGenre.length);
             res.body.forEach(function(track, index) {
@@ -201,7 +303,7 @@ describe('music-server library API tests', function() {
                     return track._id;
                 });
 
-        agent.get(serverURL + 'artists/' + artist).end(function(e, res) {
+        request.get(serverURL + 'artists/' + artist).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.deep.equal(testArtist.length);
             res.body.forEach(function(track, index) {
@@ -220,7 +322,7 @@ describe('music-server library API tests', function() {
     });
 
     it('retrieves a list of all track data', function(done) {
-        agent.get(serverURL + 'all-tracks').end(function(e, res) {
+        request.get(serverURL + 'all-tracks').end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(testData.length);
             res.body.forEach(function(track, index) {
@@ -240,16 +342,18 @@ describe('music-server library API tests', function() {
         }
 
         const stat = fs.statSync(testTrack.path);
-        agent.get(serverURL + type + '/' + testTrack._id).end(function(e, res) {
-            expect(e).to.not.exist;
-            expect(res.status).to.equal(200);
-            expect(res.headers).to.include.keys('content-type');
-            expect(res.headers['content-type']).to.equal(expectedMime);
-            expect(res.headers).to.include.keys('content-length');
-            expect(+res.headers['content-length']).to.equal(stat.size);
+        request
+            .get(serverURL + type + '/' + testTrack._id)
+            .end(function(e, res) {
+                expect(e).to.not.exist;
+                expect(res.status).to.equal(200);
+                expect(res.headers).to.include.keys('content-type');
+                expect(res.headers['content-type']).to.equal(expectedMime);
+                expect(res.headers).to.include.keys('content-length');
+                expect(+res.headers['content-length']).to.equal(stat.size);
 
-            done();
-        });
+                done();
+            });
     }
 
     it('can stream and transcode a single ogg track as mp3', function(done) {
@@ -266,9 +370,9 @@ describe('music-server library API tests', function() {
     });
 
     function testInvalidTrackAction(type, done) {
-        agent.get(serverURL + type + '/' + invalidId).end(function(e, res) {
-            expect(e).to.exist;
-            expect(e.status).to.equal(404);
+        request.get(serverURL + type + '/' + invalidId).end(function(e, res) {
+            expect(e).to.not.exist;
+            expect(res.status).to.equal(404);
             expect(res.text).to.equal("Sorry! Can't find it.");
             done();
         });
