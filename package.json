@@ -9,8 +9,8 @@
     "debug": "babel-node --inspect server/server.js",
     "lint": "eslint config server test",
     "test-seed": "mongoimport --db media-store-test --collection files --drop --type json --file test/data/files.json --jsonArray",
-    "test": "mocha --inspect --require babel-core/register --require babel-polyfill --recursive",
-    "coverage": "nyc --require babel-core/register --require babel-polyfill mocha --recursive"
+    "test": "NODE_ENV=test mocha --inspect --require babel-core/register --require babel-polyfill --recursive",
+    "coverage": "NODE_ENV=test nyc --require babel-core/register --require babel-polyfill mocha --recursive"
   },
   "author": "",
   "license": "ISC",
