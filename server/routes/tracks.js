@@ -32,16 +32,14 @@ router.get('/', (req, res, next) => {
 });
 
 router.get('/:id', (req, res, next) => {
-    console.log('get ');
     req.collection.findOne({ _id: req.params.id }, function(err, result) {
         if (err) {
-            console.log('error ', err);
+            req.log.error('Error finding track: ', err);
             return next(e);
         }
         if (!result) {
             res.status(404).send("Sorry! Can't find it.");
         } else {
-            console.log('get: ', result);
             res.send(result);
         }
     });
@@ -57,10 +55,10 @@ router.post('/', (req, res, next) => {
     } else {
         createTrack({ path, ext, mime, metadata }, (err, result) => {
             if (err) {
-                console.log('error ', err);
+                req.log.error('Error creating track: ', err);
                 return next(err);
             }
-            console.log('createTrack result ', result);
+            req.log.debug('createTrack result ', result);
             // TODO: tidy / constant error statuses, etc.
             if (result.error && result.error === 'track exists') {
                 res.status(409).send({
@@ -79,7 +77,7 @@ router.patch('/:id', (req, res, next) => {
 
     updateMetadata({ _id: req.params.id }, metadata, (err, result) => {
         if (err) {
-            console.log('error ', err);
+            req.log.error('Error updating track metadata: ', err);
             return next(err);
         }
         if (result.error && result.error === `track doesn't exist`) {
@@ -96,7 +94,7 @@ router.patch('/:id', (req, res, next) => {
 router.delete('/:id', (req, res, next) => {
     req.collection.remove({ _id: req.params.id }, (err, result) => {
         if (err) {
-            console.error(err);
+            req.log.error('Error deleting track: ', err);
             res.status(500).send({
                 status: 'error',
                 message: 'unknown error',

@@ -2,6 +2,7 @@ import commandLineArgs from 'command-line-args';
 import commandLineUsage from 'command-line-usage';
 import app from '../config/express';
 import config from '../config/env';
+import logger from '../utils/logger';
 
 const options = commandLineArgs([
     {
@@ -30,7 +31,7 @@ if (options.help) {
 }
 
 app.listen(config.port, () => {
-    console.log(`API started on ${config.port} (env: ${config.env})`);
+    logger.warn(`API started on ${config.port} (env: ${config.env})`);
 });
 
 export default app;

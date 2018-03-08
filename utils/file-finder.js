@@ -4,6 +4,7 @@ import path from 'path';
 import readChunk from 'read-chunk';
 import fileType from 'file-type';
 import async from 'async';
+import logger from './logger';
 
 const findFiles = (dir, isAllowedFile, callback) => {
     let results = [];
@@ -48,7 +49,7 @@ const findFiles = (dir, isAllowedFile, callback) => {
                     },
                     (err) => {
                         if (err) {
-                            console.log(
+                            logger.error(
                                 `a dir ${dir} failed to process: ${err}`
                             );
                         } else {
@@ -58,7 +59,7 @@ const findFiles = (dir, isAllowedFile, callback) => {
                 );
             });
         } else {
-            console.warn('strange file? ', stat);
+            logger.warn('strange file? ', stat);
             return;
         }
     });

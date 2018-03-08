@@ -2,9 +2,11 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import morgan from 'morgan';
 import cors from 'express-cors';
+import logger from 'express-bunyan-logger';
 import config from './env';
 import routes from '../server/routes';
 import { collection } from '../db';
+import { logConfig } from '../utils/logger';
 
 const app = express();
 
@@ -12,6 +14,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+app.use(logger(logConfig));
 
 app.set('json spaces', 2);
 

@@ -4,7 +4,6 @@ import parseTracks from '../utils/parse-tracks';
 const router = express.Router();
 
 router.get('/', function(req, res, next) {
-    console.log('albums');
     req.collection.aggregate(
         [
             {
@@ -19,6 +18,7 @@ router.get('/', function(req, res, next) {
         ],
         function(e, results) {
             if (e) {
+                req.log.error('Error listing albums: ', err);
                 return next(e);
             }
             res.send(results);
@@ -27,12 +27,12 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/:id', function(req, res, next) {
-    console.log('album');
     req.collection
         .find({ 'metadata.album': req.params.id })
         .sort({ 'metadata.disk.no': 1, 'metadata.track.no': 1 })
         .toArray(function(e, results) {
             if (e) {
+                req.log.error('Error getting album: ', err);
                 return next(e);
             }
             res.send(parseTracks(results));

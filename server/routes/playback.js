@@ -17,16 +17,15 @@ function transcode(file) {
 }
 
 router.get('/play/:id', function(req, res, next) {
-    console.log('stream');
     req.collection.findOne({ _id: req.params.id }, function(e, result) {
         if (e) {
-            console.log('error ', e);
+            req.log.error('Error finding track: ', err);
             return next(e);
         }
         if (!result) {
             res.status(404).send("Sorry! Can't find it.");
         } else {
-            console.log('play file ', result);
+            req.log.debug('will stream file ', result);
             const fs = require('fs');
             const stat = fs.statSync(result.path);
             res.writeHead(200, {
@@ -35,7 +34,7 @@ router.get('/play/:id', function(req, res, next) {
             });
             let readStream;
             if (-1 === result.mime.indexOf('mpeg')) {
-                console.log('not an mpeg file, will transcode ', result);
+                req.log.debug('not an mpeg file, will transcode ', result);
 
                 readStream = transcode(result.path).stdout;
             } else {
@@ -43,17 +42,16 @@ router.get('/play/:id', function(req, res, next) {
             }
             readStream.pipe(res);
             readStream.on('end', function() {
-                console.log('readStream end');
+                req.log.debug('readStream end');
             });
         }
     });
 });
 
 router.get('/download/:id', function(req, res, next) {
-    console.log('play');
     req.collection.findOne({ _id: req.params.id }, function(e, result) {
         if (e) {
-            console.log('error ', e);
+            req.log.error('Error finding track: ', err);
             return next(e);
         }
         if (!result) {
@@ -70,10 +68,10 @@ router.get('/download/:id', function(req, res, next) {
 
             res.sendFile(result.path, options, function(err) {
                 if (err) {
-                    console.log(err);
+                    req.log.error('Error sending downloaded track: ', err);
                     res.status(err.status).end();
                 } else {
-                    console.log('Sent:', result.path);
+                    req.log.debug('Sent downloaded track: ', result.path);
                 }
             });
         }

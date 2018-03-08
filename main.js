@@ -7,6 +7,8 @@ import mm from 'musicmetadata';
 import findFiles, { getSimpleExtFilter } from './utils/file-finder.js';
 import { createTrack, deleteAllTracks, updateMetadata } from './db/track';
 
+import logger from './utils/verboseLogger';
+
 const promisify = Promise.promisify;
 
 //TODO - make the media-file meta-parsers pluggable so that each one
@@ -51,7 +53,7 @@ const addFilesToDB = (files) => {
         return trackItem;
     });
     return Promise.all(trackItemPromises).then((files) => {
-        logger('addFilesToDB complete ', files);
+        verboseLogger('addFilesToDB complete ', files);
         return { files: files, errors: errors, added: files };
     });
     //We don't catch anything here - allow to bubble up - need tests?
@@ -87,7 +89,7 @@ const updateTrackInfo = (files) => {
                         error: err,
                     };
                     errors.push(error);
-                    logger('updateItem error ', error);
+                    verboseLogger('updateItem error ', error);
                 });
         });
 
@@ -95,7 +97,7 @@ const updateTrackInfo = (files) => {
         return updateItem;
     });
     return Promise.all(updateItemPromises).then((files) => {
-        logger('updateTrackInfo complete ');
+        verboseLogger('updateTrackInfo complete ');
         return {
             files: files,
             errors: errors,
@@ -150,9 +152,9 @@ and add them to a database along with any metadata read from the file.`,
     process.exit();
 }
 
-const logger = (...rest) => {
+const verboseLogger = (...rest) => {
     if (options.verbose) {
-        console.log.apply(this, rest);
+        logger.info.apply(this, rest);
     }
 };
 
@@ -173,7 +175,7 @@ const start = () => {
             return addFilesToDB(files);
         })
         .then((results) => {
-            logger(
+            verboseLogger(
                 'added ',
                 results.added.length,
                 'of ',
@@ -185,7 +187,7 @@ const start = () => {
             return updateTrackInfo(results.added);
         })
         .then((results) => {
-            logger(
+            verboseLogger(
                 'db updated meta in ',
                 results.filesUpdated.length,
                 'of ',
@@ -193,12 +195,12 @@ const start = () => {
                 ' errors ',
                 results.errors
             );
-            //console.log('filesWithMetadata ', results.filesWithMetadata);
-            // console.log('filesUpdated ', results.filesUpdated);
+            // verboseLogger.debug('filesWithMetadata ', results.filesWithMetadata);
+            // verboseLogger.debug('filesUpdated ', results.filesUpdated);
             process.exit();
         })
         .catch((error) => {
-            logger('error ', error);
+            verboseLogger('error ', error);
             process.exit();
         });
 };

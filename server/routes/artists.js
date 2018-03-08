@@ -4,7 +4,6 @@ import parseTracks from '../utils/parse-tracks';
 const router = express.Router();
 
 router.get('/', function(req, res, next) {
-    console.log('artists');
     req.collection.aggregate(
         [
             { $match: { metadata: { $exists: true } } },
@@ -15,6 +14,7 @@ router.get('/', function(req, res, next) {
         ],
         function(e, results) {
             if (e) {
+                req.log.error('Error listing artists: ', err);
                 return next(e);
             }
             res.send(results);
@@ -23,7 +23,6 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/:id', function(req, res, next) {
-    console.log('artist');
     req.collection
         .find({ 'metadata.artist': req.params.id })
         .sort({
@@ -33,6 +32,7 @@ router.get('/:id', function(req, res, next) {
         })
         .toArray(function(e, results) {
             if (e) {
+                req.log.error('Error getting artist: ', err);
                 return next(e);
             }
             res.send(parseTracks(results));

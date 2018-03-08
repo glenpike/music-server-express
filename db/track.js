@@ -1,6 +1,7 @@
 import mongoskin from 'mongoskin';
 import md5 from 'md5';
 import { collection } from './';
+import logger from '../utils/logger';
 
 //Very simplistic CRUD wrapper for database
 //Does not take advantage of mongo / mongoskin features much.
@@ -26,10 +27,10 @@ export const readTrack = (hash, callback) => {
 
 export const createTrack = (file, callback) => {
     const hash = md5(file.path);
-
+    logger.debug('createTrack...');
     readTrack(hash, (err, result) => {
         if (err) {
-            console.log('createTrack - readTrack error', err);
+            logger.error('createTrack, error reading track:', err);
             return callback(err);
         }
         if (result) {
@@ -47,7 +48,7 @@ export const createTrack = (file, callback) => {
 
         collection.insert(toInsert, {}, (err, result) => {
             if (err) {
-                console.log('createTrack - insert error');
+                logger.error('createTrack, error inserting track:', err);
                 return callback(err);
             }
 
@@ -60,10 +61,9 @@ export const createTrack = (file, callback) => {
 export const updateMetadata = (file, metadata, callback) => {
     readTrack(file._id, (err, result) => {
         if (err) {
-            console.log('updateMetadata - readTrack error', err);
+            logger.error('updateMetadata, error reading track:', err);
             return callback(err);
         }
-        // console.log('updateMetadata - ', file._id, ' metadata ', metadata);
         if (!result) {
             return callback(null, { error: `track doesn't exist` });
         }
@@ -73,6 +73,7 @@ export const updateMetadata = (file, metadata, callback) => {
             { $set: { metadata: metadata } },
             (err, result) => {
                 if (err) {
+                    logger.error('updateMetadata, error updating track:', err);
                     return callback(err);
                 }
                 track.metadata = metadata;
