@@ -1,44 +1,50 @@
 import express from 'express';
 import parseTracks from '../utils/parse-tracks';
-import { createTrack, updateMetadata } from '../../db/track';
+import {
+    readTracks,
+    readTrack,
+    createTrack,
+    updateMetadata,
+} from '../../db/track';
+import { collection } from '../../db';
+import errors from '../../utils/errors';
+
+const { status, errorMessages } = errors;
 
 const router = express.Router();
 
 router.get('/', (req, res, next) => {
-    const entries = [];
-    req.collection
-        .find({}, { _id: 1, path: 1, metadata: 1 })
-        .toArray(function(err, results) {
-            if (err) {
-                return next(err);
+    readTracks(null, function(err, results) {
+        if (err) {
+            return next(errorMessages(err));
+        }
+        const entries = [];
+        results.forEach(function(entry) {
+            const data = {
+                id: entry._id,
+                path: entry.path ? entry.path : 'No path',
+            };
+            if (entry.metadata && entry.metadata.title) {
+                data.title = entry.metadata.title;
+            } else {
+                data.title = data.path.replace(/.*\/([^.]+)\..*$/gi, '$1');
             }
-            results.forEach(function(entry) {
-                const data = {
-                    id: entry._id,
-                    path: entry.path ? entry.path : 'No path',
-                };
-                if (entry.metadata && entry.metadata.title) {
-                    data.title = entry.metadata.title;
-                } else {
-                    data.title = data.path.replace(/.*\/([^.]+)\..*$/gi, '$1');
-                }
-                if (entry.metadata && entry.metadata.album) {
-                    data.album = entry.metadata.album;
-                }
-                entries.push(data);
-            });
-            res.send(entries);
+            if (entry.metadata && entry.metadata.album) {
+                data.album = entry.metadata.album;
+            }
+            entries.push(data);
         });
+        res.send(entries);
+    });
 });
 
 router.get('/:id', (req, res, next) => {
-    req.collection.findOne({ _id: req.params.id }, function(err, result) {
+    readTrack(req.params.id, function(err, result) {
         if (err) {
-            req.log.error('Error finding track: ', err);
-            return next(e);
+            return next(errorMessages(err));
         }
         if (!result) {
-            res.status(404).send("Sorry! Can't find it.");
+            res.status(404).send(errorMessages(status.TRACK_NOT_FOUND));
         } else {
             res.send(result);
         }
@@ -55,16 +61,11 @@ router.post('/', (req, res, next) => {
     } else {
         createTrack({ path, ext, mime, metadata }, (err, result) => {
             if (err) {
-                req.log.error('Error creating track: ', err);
-                return next(err);
+                return next(errorMessages(err));
             }
             req.log.debug('createTrack result ', result);
-            // TODO: tidy / constant error statuses, etc.
-            if (result.error && result.error === 'track exists') {
-                res.status(409).send({
-                    status: 'error',
-                    message: 'track exists',
-                });
+            if (result.error && result.error === status.TRACK_EXISTS) {
+                res.status(409).send(errorMessages(status.TRACK_EXISTS));
                 return next();
             }
             res.status(201).send(result);
@@ -77,14 +78,10 @@ router.patch('/:id', (req, res, next) => {
 
     updateMetadata({ _id: req.params.id }, metadata, (err, result) => {
         if (err) {
-            req.log.error('Error updating track metadata: ', err);
-            return next(err);
+            return next(errorMessages(err));
         }
-        if (result.error && result.error === `track doesn't exist`) {
-            res.status(404).send({
-                status: 'error',
-                message: result.error,
-            });
+        if (result.error && result.error === status.TRACK_NOT_FOUND) {
+            res.status(404).send(errorMessages(status.TRACK_NOT_FOUND));
             return next();
         }
         res.status(200).send(result);
@@ -92,14 +89,10 @@ router.patch('/:id', (req, res, next) => {
 });
 
 router.delete('/:id', (req, res, next) => {
-    req.collection.remove({ _id: req.params.id }, (err, result) => {
+    collection.remove({ _id: req.params.id }, (err, result) => {
         if (err) {
-            req.log.error('Error deleting track: ', err);
-            res.status(500).send({
-                status: 'error',
-                message: 'unknown error',
-            });
-            next(err);
+            res.status(500).send(errorMessages(status.TRACK_DELETE_ERROR));
+            next();
         }
         return res.status(204).send();
     });

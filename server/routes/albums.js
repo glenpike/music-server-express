@@ -1,10 +1,11 @@
 import express from 'express';
 import parseTracks from '../utils/parse-tracks';
+import { collection } from '../../db';
 
 const router = express.Router();
 
 router.get('/', function(req, res, next) {
-    req.collection.aggregate(
+    collection.aggregate(
         [
             {
                 $match: {
@@ -27,7 +28,7 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/:id', function(req, res, next) {
-    req.collection
+    collection
         .find({ 'metadata.album': req.params.id })
         .sort({ 'metadata.disk.no': 1, 'metadata.track.no': 1 })
         .toArray(function(e, results) {

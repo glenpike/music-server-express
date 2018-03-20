@@ -140,7 +140,7 @@ describe('music-server library API tests', function() {
                 expect(e).to.not.exist;
                 expect(res.status).to.equal(404);
                 expect(res.body.status).to.equal('error');
-                expect(res.body.message).to.contain(`track doesn't exist`);
+                expect(res.body.message).to.contain('TRACK_NOT_FOUND');
                 done();
             });
     });
@@ -181,7 +181,8 @@ describe('music-server library API tests', function() {
         request.get(serverURL + 'tracks/' + invalidId).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.status).to.equal(404);
-            expect(res.text).to.equal("Sorry! Can't find it.");
+            expect(res.body.status).to.equal('error');
+            expect(res.body.message).to.contain('TRACK_NOT_FOUND');
             done();
         });
     });

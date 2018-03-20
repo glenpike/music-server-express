@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs';
+import { collection } from '../../db';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ function transcode(file) {
 }
 
 router.get('/play/:id', function(req, res, next) {
-    req.collection.findOne({ _id: req.params.id }, function(e, result) {
+    collection.findOne({ _id: req.params.id }, function(e, result) {
         if (e) {
             req.log.error('Error finding track: ', err);
             return next(e);
@@ -49,7 +50,7 @@ router.get('/play/:id', function(req, res, next) {
 });
 
 router.get('/download/:id', function(req, res, next) {
-    req.collection.findOne({ _id: req.params.id }, function(e, result) {
+    collection.findOne({ _id: req.params.id }, function(e, result) {
         if (e) {
             req.log.error('Error finding track: ', err);
             return next(e);

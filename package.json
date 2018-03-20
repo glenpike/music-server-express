@@ -27,7 +27,6 @@
     "md5": "^2.0.0",
     "mongodb": "^2.0.47",
     "mongoskin": "^2.0.3",
-    "morgan": "^1.6.1",
     "musicmetadata": "^2.0.0",
     "read-chunk": "^1.0.1"
   },

@@ -1,15 +1,17 @@
 import bunyan from 'bunyan';
+import os from 'os';
+import path from 'path';
 
 export const logConfig = {
     name: 'music-server',
     level: 'debug',
 };
 
-// TODO: Tune this better...
 if (process.env.NODE_ENV === 'test') {
+    const tmpPath = path.join(os.tmpdir(), 'music-server.log');
     logConfig.streams = [
         {
-            path: '/tmp/music-server.log', // Windows???
+            path: tmpPath,
         },
     ];
 } else {

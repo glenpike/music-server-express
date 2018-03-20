@@ -1,10 +1,11 @@
 import express from 'express';
 import parseTracks from '../utils/parse-tracks';
+import { collection } from '../../db';
 
 const router = express.Router();
 
 router.get('/', function(req, res, next) {
-    req.collection.aggregate(
+    collection.aggregate(
         [
             {
                 $match: {
@@ -28,7 +29,7 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/:id', function(req, res, next) {
-    req.collection
+    collection
         .find({ 'metadata.genre': req.params.id })
         .sort({
             'metadata.artist': 1,

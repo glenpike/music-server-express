@@ -1,35 +1,23 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import morgan from 'morgan';
 import cors from 'express-cors';
 import logger from 'express-bunyan-logger';
+// import bunyanRequest from 'bunyan-request';
 import config from './env';
 import routes from '../server/routes';
-import { collection } from '../db';
-import { logConfig } from '../utils/logger';
+import appLogger from '../utils/logger';
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(morgan('dev'));
 
-app.use(logger(logConfig));
+app.use(logger({ logger: appLogger }));
 
 app.set('json spaces', 2);
 
-// Would be nice not to have to rely on coupling so closely here
-// but middleware order is important...
-// consider splitting the DB from the routes - "model" layer
-app.use('/', function(req, res, next) {
-    req.collection = collection;
-    return next();
-});
-
 // All routes under /api
 app.use('/api', routes);
-
-// TODO: default error handling;
 
 export default app;
