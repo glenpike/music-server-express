@@ -1,0 +1,13 @@
+version: '3.1'
+
+services:
+
+  db:
+    image: postgres:alpine
+    restart: always
+    environment:
+      POSTGRES_USER: music
+      POSTGRES_PASSWORD: express
+      POSTGRES_DB: music
+    ports:
+      - "5432:5432"

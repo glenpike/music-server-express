@@ -1,0 +1,7 @@
+CREATE TABLE tracks (
+  id VARCHAR NOT NULL PRIMARY KEY,
+  ext VARCHAR NOT NULL,
+  path TEXT NOT NULL,
+  mime VARCHAR NOT NULL,
+  metadata json
+);
