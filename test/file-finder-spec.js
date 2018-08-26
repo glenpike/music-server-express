@@ -1,6 +1,6 @@
+/* global it, describe, __dirname */
 import chai from 'chai';
 import chaiThings from 'chai-things';
-import should from 'should';
 import path from 'path';
 import findFiles, { getSimpleExtFilter } from '../utils/file-finder';
 
@@ -8,8 +8,6 @@ chai.should();
 chai.use(chaiThings);
 
 describe('file-finder tests', function() {
-    const dir = __dirname;
-
     //Doesn't account for path separator!
     it('can return a list of files in a directory', function(done) {
         const fullPath = path.resolve(__dirname, '../node_modules/chai');
@@ -34,7 +32,7 @@ describe('file-finder tests', function() {
     //Also tests copying of "filter" output back into our file results
     it('can be passed a function to filter files ', function(done) {
         let count = 0;
-        const filter = function(file) {
+        const filter = function() {
             count++;
             if (count % 2) {
                 return {

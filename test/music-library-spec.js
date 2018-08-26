@@ -1,13 +1,16 @@
+/* global require, it, describe, before, after, __dirname */
 import chai, { expect } from 'chai';
 import chaiThings from 'chai-things';
 import md5 from 'md5';
 import supertest from 'supertest';
+// import request from 'superagent';
 import app from '../config/express';
-import db from '../db/index';
+import pool from '../db/index';
 
 chai.use(chaiThings);
 
 const serverURL = '/api/';
+// const serverURL = 'http://localhost:3000/api/';
 
 const path = require('path');
 const fs = require('fs');
@@ -62,7 +65,7 @@ describe('music-server library API tests', function() {
 
     after(function(done) {
         server.close(() => {
-            db.close(() => {
+            pool.end(() => {
                 done();
             });
         });
@@ -72,7 +75,7 @@ describe('music-server library API tests', function() {
         request.get(serverURL + 'tracks').end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(testData.length);
-            res.body.forEach(function(track, index) {
+            res.body.forEach(function(track) {
                 expect(testIds).to.contain(track.id);
             });
             done();
@@ -93,7 +96,7 @@ describe('music-server library API tests', function() {
             });
     });
 
-    it('behaves correctly for posting an invalid track', function(done) {
+    it.only('behaves correctly for posting an invalid track', function(done) {
         request
             .post(serverURL + 'tracks/')
             .send({ path: 'Blah', invalid: 'blah' })
@@ -118,15 +121,15 @@ describe('music-server library API tests', function() {
         },
     };
 
-    it('behaves correctly for posting a valid track', function(done) {
+    it.only('behaves correctly for posting a valid track', function(done) {
         request
             .post(serverURL + 'tracks/')
             .send(testFile)
             .end(function(e, res) {
                 expect(e).to.not.exist;
                 expect(res.status).to.equal(201);
-                expect(res.body._id).to.exist;
-                testId = res.body._id;
+                expect(res.body.id).to.exist;
+                testId = res.body.id;
                 expect(res.body).to.deep.include(testFile);
                 done();
             });
@@ -166,7 +169,7 @@ describe('music-server library API tests', function() {
             });
     });
 
-    it('behaves correctly for deleting a valid track', function(done) {
+    it.only('behaves correctly for deleting a valid track', function(done) {
         request
             .delete(serverURL + 'tracks/' + md5(testFile.path))
             .end(function(e, res) {
@@ -235,7 +238,7 @@ describe('music-server library API tests', function() {
         request.get(serverURL + type).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(expected.length);
-            res.body.forEach(function(item, index) {
+            res.body.forEach(function(item) {
                 expect(expected).to.contain(item._id);
                 expect(item.num_tracks).to.be.above(0);
             });
@@ -272,7 +275,7 @@ describe('music-server library API tests', function() {
         request.get(serverURL + 'genres/' + genre).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.deep.equal(testGenre.length);
-            res.body.forEach(function(track, index) {
+            res.body.forEach(function(track) {
                 expect(testGenre).to.contain(track.id);
                 expect(track.title).to.exist;
                 expect(track.artist).to.exist;
@@ -307,7 +310,7 @@ describe('music-server library API tests', function() {
         request.get(serverURL + 'artists/' + artist).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.deep.equal(testArtist.length);
-            res.body.forEach(function(track, index) {
+            res.body.forEach(function(track) {
                 expect(testArtist).to.contain(track.id);
                 expect(track.title).to.exist;
                 expect(track.artist).to.equal(artist);
@@ -326,7 +329,7 @@ describe('music-server library API tests', function() {
         request.get(serverURL + 'all-tracks').end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(testData.length);
-            res.body.forEach(function(track, index) {
+            res.body.forEach(function(track) {
                 expect(testIds).to.contain(track._id);
             });
             done();
@@ -374,7 +377,7 @@ describe('music-server library API tests', function() {
         request.get(serverURL + type + '/' + invalidId).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.status).to.equal(404);
-            expect(res.text).to.equal("Sorry! Can't find it.");
+            expect(res.text).to.equal("Sorry! Can't find it."); // eslint-disable-line quotes
             done();
         });
     }

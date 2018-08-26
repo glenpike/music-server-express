@@ -1,112 +1,121 @@
-import mongoskin from 'mongoskin';
 import md5 from 'md5';
-import { collection } from './';
+import pool from './';
 import logger from '../utils/logger';
 import errors from '../utils/errors';
 
 const { status } = errors;
 
 //Very simplistic CRUD wrapper for database
-//Does not take advantage of mongo / mongoskin features much.
 
 export const readTracks = (params, callback) => {
-    const query = params || {};
-    collection
-        .find(query, { _id: 1, path: 1, metadata: 1 })
-        .toArray((err, results) => {
-            if (err) {
-                logger.error('readTracks, error:', err);
-                return callback({ error: status.TRACK_LIST_ERROR });
-            }
-            return callback(null, results);
+    // FIXME - querying currently disabled...
+    // const query = params || {};
+    pool
+        .query('SELECT * FROM tracks')
+        .then((results) => callback(null, results))
+        .catch((error) => {
+            logger.error('readTracks, error:', error);
+            return callback({ error: status.TRACK_LIST_ERROR });
         });
 };
 
 export const readTrack = (hash, callback) => {
-    collection.findOne({ _id: hash }, (err, result) => {
-        if (err) {
-            logger.error('readTrack, error:', err);
+    pool
+        .query('SELECT * FROM tracks WHERE id = $1', [hash])
+        .then((results) => callback(null, results))
+        .catch((error) => {
+            logger.error('readTrack, error:', error);
             return callback({ error: status.TRACK_READ_ERROR });
-        }
-        return callback(null, result);
-    });
+        });
 };
 
 export const createTrack = (file, callback) => {
     const hash = md5(file.path);
     logger.debug('createTrack...');
     readTrack(hash, (err, result) => {
+        logger.debug('createTrack - readTrack ', result.rows, err);
         if (err) {
             return callback(err);
         }
-        if (result) {
+        if (result.rows.length) {
             return callback(null, { error: status.TRACK_EXISTS });
         }
-        const { ext, path, mime, metadata = {} } = file;
+        const { ext, path, mime, metadata = null } = file;
         //Simple, fast, flat copy - assuming this never changes!
-        const toInsert = {
-            _id: hash,
-            ext,
-            path,
-            mime,
-            metadata,
-        };
+        const toInsert = [hash, ext, path, mime, metadata];
 
-        collection.insert(toInsert, {}, (err, result) => {
-            if (err) {
-                logger.error('createTrack, error inserting track:', err);
+        const text =
+            'INSERT INTO tracks(id, ext, path, mime, metadata) VALUES($1, $2, $3, $4, $5) RETURNING *';
+        pool
+            .query(text, toInsert)
+            .then((results) => callback(null, results.rows[0]))
+            .catch((error) => {
+                logger.error('createTrack, error inserting track:', error);
                 return callback({ error: status.TRACK_CREATE_ERROR });
-            }
-
-            //we should care more about the result in case something happened!
-            return callback(null, toInsert);
-        });
+            });
     });
 };
 
 export const updateMetadata = (file, metadata, callback) => {
-    readTrack(file._id, (err, result) => {
+    readTrack(file.id, (err, result) => {
         if (err) {
             return callback(err);
         }
-        if (!result) {
+        if (!result.rows.length) {
             logger.error('TRACK_NOT_FOUND');
             return callback(null, { error: status.TRACK_NOT_FOUND });
         }
-        const track = result;
-        collection.update(
-            { _id: file._id },
-            { $set: { metadata: metadata } },
-            (err, result) => {
-                if (err) {
-                    logger.error('updateMetadata, error updating track:', err);
-                    return callback({ error: status.TRACK_UPDATE_ERROR });
-                }
+        const track = result.rows[0];
+        const text = 'UPDATE tracks SET metadata = $1 WHERE id = $2';
+        pool
+            .query(text, [file.id, metadata])
+            .then(() => {
                 track.metadata = metadata;
                 return callback(null, track);
-            }
-        );
+            })
+            .catch((error) => {
+                logger.error('createTrack, error updating track:', error);
+                return callback({ error: status.TRACK_UPDATE_ERROR });
+            });
     });
 };
 
-export const deleteTrack = (file, callback) => {
-    //is this a hash or an id?
-    const hash = md5(file.path);
-    collection.remove({ _id: hash }, (err, result) => {
+export const deleteTrack = (id, callback) => {
+    logger.debug('deleteTrack...', id);
+    readTrack(id, (err, result) => {
         if (err) {
-            logger.error('deleteTrack, error:', err);
-            return callback({ error: status.TRACK_DELETE_ERROR });
+            return callback(err);
         }
-        return callback(null, true);
+        if (!result.rows.length) {
+            logger.error('TRACK_NOT_FOUND');
+            return callback(null, { error: status.TRACK_NOT_FOUND });
+        }
+        const text = 'DELETE FROM tracks WHERE id = $1';
+        pool
+            .query(text, [id])
+            .then((results) => {
+                if (results.rowCount !== 1) {
+                    logger.debug('deleteTrack nothing deleted ', results);
+                    return callback({ error: status.TRACK_DELETE_ERROR });
+                }
+                return callback(null, true);
+            })
+            .catch((error) => {
+                logger.error('deleteTrack, error:', error);
+                return callback({ error: status.TRACK_DELETE_ERROR });
+            });
     });
 };
 
 export const deleteAllTracks = (callback) => {
-    collection.remove({}, (err, result) => {
-        if (err) {
-            logger.error('deleteAllTracks, error:', err);
+    const text = 'DELETE FROM tracks';
+    pool
+        .query(text)
+        .then(() => {
+            return callback(null, true);
+        })
+        .catch((error) => {
+            logger.error('deleteAllTracks, error:', error);
             return callback({ error: status.TRACK_DELETE_ERROR });
-        }
-        return callback(null, true);
-    });
+        });
 };

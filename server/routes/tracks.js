@@ -1,13 +1,14 @@
+/* global module */
 import express from 'express';
-import parseTracks from '../utils/parse-tracks';
 import {
     readTracks,
     readTrack,
     createTrack,
     updateMetadata,
+    deleteTrack,
 } from '../../db/track';
-import { collection } from '../../db';
 import errors from '../../utils/errors';
+import logger from '../../utils/logger';
 
 const { status, errorMessages } = errors;
 
@@ -53,6 +54,7 @@ router.get('/:id', (req, res, next) => {
 
 router.post('/', (req, res, next) => {
     const { path, ext, mime, metadata = {} } = req.body;
+    logger.debug('POST tracks ', req.body);
     if (!path || !ext || !mime) {
         res.status(400).send({
             status: 'error',
@@ -63,7 +65,7 @@ router.post('/', (req, res, next) => {
             if (err) {
                 return next(errorMessages(err));
             }
-            req.log.debug('createTrack result ', result);
+            logger.debug('createTrack result ', result);
             if (result.error && result.error === status.TRACK_EXISTS) {
                 res.status(409).send(errorMessages(status.TRACK_EXISTS));
                 return next();
@@ -89,10 +91,14 @@ router.patch('/:id', (req, res, next) => {
 });
 
 router.delete('/:id', (req, res, next) => {
-    collection.remove({ _id: req.params.id }, (err, result) => {
+    return deleteTrack(req.params.id, (err, result) => {
         if (err) {
             res.status(500).send(errorMessages(status.TRACK_DELETE_ERROR));
             next();
+        }
+        if (result.error && result.error === status.TRACK_NOT_FOUND) {
+            res.status(404).send(errorMessages(status.TRACK_NOT_FOUND));
+            return next();
         }
         return res.status(204).send();
     });

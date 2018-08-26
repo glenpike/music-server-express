@@ -1,10 +1,10 @@
 import express from 'express';
 import trackRoutes from './tracks';
-import albumRoutes from './albums';
-import genreRoutes from './genres';
-import artistRoutes from './artists';
-import allTrackRoutes from './all-tracks';
-import playbackRoutes from './playback';
+// import albumRoutes from './albums';
+// import genreRoutes from './genres';
+// import artistRoutes from './artists';
+// import allTrackRoutes from './all-tracks';
+// import playbackRoutes from './playback';
 
 const router = express.Router(); // eslint-disable-line new-cap
 
@@ -16,10 +16,10 @@ router.get('/api-status', (req, res) =>
 );
 
 router.use('/tracks', trackRoutes);
-router.use('/albums', albumRoutes);
-router.use('/genres', genreRoutes);
-router.use('/artists', artistRoutes);
-router.use('/all-tracks', allTrackRoutes);
-router.use('/', playbackRoutes);
+// router.use('/albums', albumRoutes);
+// router.use('/genres', genreRoutes);
+// router.use('/artists', artistRoutes);
+// router.use('/all-tracks', allTrackRoutes);
+// router.use('/', playbackRoutes);
 
 export default router;

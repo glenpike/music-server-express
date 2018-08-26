@@ -1,7 +1,8 @@
-import mongoskin from 'mongoskin';
+import { Pool } from 'pg';
 import config from '../config/env';
 
-const db = mongoskin.db(config.url, { safe: true });
-export const collection = db.collection(config.collection);
+const pool = new Pool({
+    connectionString: config.url,
+});
 
-export default db;
+export default pool;

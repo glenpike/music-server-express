@@ -3,7 +3,7 @@ import bodyParser from 'body-parser';
 import cors from 'express-cors';
 import logger from 'express-bunyan-logger';
 // import bunyanRequest from 'bunyan-request';
-import config from './env';
+// import config from './env';
 import routes from '../server/routes';
 import appLogger from '../utils/logger';
 
@@ -13,7 +13,7 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(logger({ logger: appLogger }));
+// app.use(logger({ logger: appLogger }));
 
 app.set('json spaces', 2);
 

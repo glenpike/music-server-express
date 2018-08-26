@@ -1,3 +1,4 @@
+/* global process */
 import commandLineArgs from 'command-line-args';
 import commandLineUsage from 'command-line-usage';
 import app from '../config/express';
@@ -26,7 +27,7 @@ if (options.help) {
         },
     ]);
 
-    console.log(usage);
+    console.log(usage); // eslint-disable-line no-console
     process.exit();
 }
 

@@ -28,6 +28,7 @@
     "mongodb": "^2.0.47",
     "mongoskin": "^2.0.3",
     "musicmetadata": "^2.0.0",
+    "pg": "^7.4.3",
     "read-chunk": "^1.0.1"
   },
   "devDependencies": {
