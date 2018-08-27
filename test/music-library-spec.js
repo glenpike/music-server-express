@@ -82,18 +82,16 @@ describe('music-server library API tests', function() {
         });
     });
 
-    it('retrieves info for a single track', function(done) {
+    it.only('retrieves info for a single track', function(done) {
         //metadata for wav is not consistent
         const testTrack = testData.find(function(track) {
             return track.ext != 'wav';
         });
-        request
-            .get(serverURL + 'tracks/' + testTrack._id)
-            .end(function(e, res) {
-                expect(e).to.not.exist;
-                expect(res.body).to.deep.equal(testTrack);
-                done();
-            });
+        request.get(serverURL + 'tracks/' + testTrack.id).end(function(e, res) {
+            expect(e).to.not.exist;
+            expect(res.body).to.deep.equal(testTrack);
+            done();
+        });
     });
 
     it.only('behaves correctly for posting an invalid track', function(done) {
