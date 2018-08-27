@@ -22,7 +22,7 @@ router.get('/', (req, res, next) => {
         const entries = [];
         results.forEach(function(entry) {
             const data = {
-                id: entry._id,
+                id: entry.id,
                 path: entry.path ? entry.path : 'No path',
             };
             if (entry.metadata && entry.metadata.title) {

@@ -48,7 +48,7 @@ const testIds = testData.map(function(item) {
             uniqueItems(artists, uniqueArtists);
         }
     }
-    return item._id;
+    return item.id;
 });
 
 uniqueAlbums.sort();
@@ -71,7 +71,7 @@ describe('music-server library API tests', function() {
         });
     });
 
-    it('retrieves a list of tracks', function(done) {
+    it.only('retrieves a list of tracks', function(done) {
         request.get(serverURL + 'tracks').end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.body.length).to.equal(testData.length);

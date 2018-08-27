@@ -1,3 +1,5 @@
+/* global require, process */
+/* eslint-disable no-console */
 import { createReadStream } from 'fs';
 const commandLineArgs = require('command-line-args');
 const commandLineUsage = require('command-line-usage');
@@ -6,8 +8,6 @@ import mm from 'musicmetadata';
 
 import findFiles, { getSimpleExtFilter } from './utils/file-finder.js';
 import { createTrack, deleteAllTracks, updateMetadata } from './db/track';
-
-import logger from './utils/verboseLogger';
 
 const promisify = Promise.promisify;
 
@@ -43,7 +43,7 @@ const addFilesToDB = (files) => {
             })
             .catch((err) => {
                 errors.push({
-                    file: task.file.path,
+                    file: file.path,
                     error: err,
                 });
             });
@@ -154,7 +154,7 @@ and add them to a database along with any metadata read from the file.`,
 
 const verboseLogger = (...rest) => {
     if (options.verbose) {
-        logger.info.apply(this, rest);
+        console.log(rest);
     }
 };
 
@@ -162,7 +162,7 @@ const start = () => {
     //TODO - cross reference albums and other metadata.
     //TODO - what happens when files are deleted on disk?
     //'/media/linmedia/Music/ogg/'
-    const path = './tests/test-files';
+    const path = './test/test-files';
 
     const dir = options.path ? options.path : path;
 

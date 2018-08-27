@@ -12,7 +12,12 @@ export const readTracks = (params, callback) => {
     // const query = params || {};
     pool
         .query('SELECT * FROM tracks')
-        .then((results) => callback(null, results))
+        .then((results) => {
+            if (!results.rows) {
+                return callback({ error: status.TRACK_LIST_ERROR });
+            }
+            return callback(null, results.rows);
+        })
         .catch((error) => {
             logger.error('readTracks, error:', error);
             return callback({ error: status.TRACK_LIST_ERROR });
@@ -68,13 +73,13 @@ export const updateMetadata = (file, metadata, callback) => {
         const track = result.rows[0];
         const text = 'UPDATE tracks SET metadata = $1 WHERE id = $2';
         pool
-            .query(text, [file.id, metadata])
+            .query(text, [metadata, file.id])
             .then(() => {
                 track.metadata = metadata;
                 return callback(null, track);
             })
             .catch((error) => {
-                logger.error('createTrack, error updating track:', error);
+                logger.error('updateMetadata, error updating track:', error);
                 return callback({ error: status.TRACK_UPDATE_ERROR });
             });
     });
