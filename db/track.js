@@ -7,6 +7,7 @@ const { status } = errors;
 
 //Very simplistic CRUD wrapper for database
 
+// eslint-disable-next-line no-unused-vars
 export const readTracks = async (params) => {
     // FIXME - querying currently disabled...
     // const query = params || {};
@@ -14,7 +15,7 @@ export const readTracks = async (params) => {
         const { rows: tracks } = await pool.query('SELECT * FROM tracks');
         logger.debug('readTracks ', tracks.length);
         return { tracks };
-    } catch(error) {
+    } catch (error) {
         logger.error('readTracks, error:', error);
         return { error: status.TRACK_LIST_ERROR };
     }
@@ -26,7 +27,7 @@ export const readTrack = async (id) => {
         logger.debug('readTrack ', rows);
         const track = rows && rows[0] ? rows[0] : null;
         return { track };
-    } catch(error) {
+    } catch (error) {
         logger.error('readTrack, error:', error);
         return { error: status.TRACK_READ_ERROR };
     }
@@ -52,7 +53,7 @@ export const createTrack = async (file) => {
             'INSERT INTO tracks(id, ext, path, mime, metadata) VALUES($1, $2, $3, $4, $5) RETURNING *';
         const { rows } = await pool.query(text, toInsert)
         return { track: rows[0] };
-    } catch(error) {
+    } catch (error) {
         logger.error('createTrack, error inserting track:', error);
         return { error: status.TRACK_CREATE_ERROR };
     }
@@ -73,7 +74,7 @@ export const updateMetadata = async (id, metadata) => {
         await pool.query(text, [metadata, id]);
         track.metadata = metadata;
         return { track };
-     } catch(error) {
+    } catch (error) {
         logger.error('updateMetadata, error updating track:', error);
         return { error: status.TRACK_UPDATE_ERROR };
     }
@@ -97,7 +98,7 @@ export const deleteTrack = async (id) => {
             return { error: status.TRACK_DELETE_ERROR };
         }
         return { deleted: 1 };
-    } catch(error) {
+    } catch (error) {
         logger.error('deleteTrack, error:', error);
         return { error: status.TRACK_DELETE_ERROR };
     }
@@ -107,7 +108,7 @@ export const deleteAllTracks = async () => {
     try {
         const { rowCount } = await pool.query('DELETE FROM tracks')
         return { deleted: rowCount };
-    } catch(error) {
+    } catch (error) {
         logger.error('deleteAllTracks, error:', error);
         return { error: status.TRACK_DELETE_ERROR };
     }

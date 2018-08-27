@@ -63,7 +63,7 @@ router.post('/', async (req, res, next) => {
     }
     const { track, error } = await createTrack({ path, ext, mime, metadata });
     if (error) {
-        if(error === status.TRACK_EXISTS) {
+        if (error === status.TRACK_EXISTS) {
             res.status(409).send(errorMessages(status.TRACK_EXISTS));
             return next();
         }
@@ -79,7 +79,7 @@ router.patch('/:id', async (req, res, next) => {
     const { track, error } = await updateMetadata(req.params.id, metadata);
     logger.debug('updateMetadata result ', track, error);
     if (error) {
-        if(error === status.TRACK_NOT_FOUND) {
+        if (error === status.TRACK_NOT_FOUND) {
             res.status(404).send(errorMessages(status.TRACK_NOT_FOUND));
             return next();
         }
@@ -91,7 +91,7 @@ router.patch('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
     const { error } = await deleteTrack(req.params.id);
     if (error) {
-        if(error === status.TRACK_NOT_FOUND) {
+        if (error === status.TRACK_NOT_FOUND) {
             res.status(404).send(errorMessages(status.TRACK_NOT_FOUND));
             return next();
         }

@@ -4,10 +4,10 @@
         "prettier/prettier": "error",
         "import/prefer-default-export": "off",
         "no-var": "error",
-        "prefer-const": "warn",
+        "prefer-const": "warn"
     },
     "parserOptions": {
-        "ecmaVersion": 6,
-        "sourceType": "module",
+        "ecmaVersion": 8,
+        "sourceType": "module"
     }
 }
