@@ -24,10 +24,14 @@ export const readTracks = (params, callback) => {
         });
 };
 
-export const readTrack = (hash, callback) => {
+export const readTrack = (id, callback) => {
     pool
-        .query('SELECT * FROM tracks WHERE id = $1', [hash])
-        .then((results) => callback(null, results))
+        .query('SELECT * FROM tracks WHERE id = $1', [id])
+        .then((results) => {
+            logger.debug('readTrack rows ', results.rows);
+            const track = results.rows ? results.rows[0] : null;
+            return callback(null, track);
+        })
         .catch((error) => {
             logger.error('readTrack, error:', error);
             return callback({ error: status.TRACK_READ_ERROR });
@@ -38,11 +42,11 @@ export const createTrack = (file, callback) => {
     const hash = md5(file.path);
     logger.debug('createTrack...');
     readTrack(hash, (err, result) => {
-        logger.debug('createTrack - readTrack ', result.rows, err);
+        logger.debug('createTrack - readTrack ', result, err);
         if (err) {
             return callback(err);
         }
-        if (result.rows.length) {
+        if (result) {
             return callback(null, { error: status.TRACK_EXISTS });
         }
         const { ext, path, mime, metadata = null } = file;
@@ -61,19 +65,19 @@ export const createTrack = (file, callback) => {
     });
 };
 
-export const updateMetadata = (file, metadata, callback) => {
-    readTrack(file.id, (err, result) => {
+export const updateMetadata = (id, metadata, callback) => {
+    readTrack(id, (err, result) => {
         if (err) {
             return callback(err);
         }
-        if (!result.rows.length) {
+        if (!result) {
             logger.error('TRACK_NOT_FOUND');
             return callback(null, { error: status.TRACK_NOT_FOUND });
         }
-        const track = result.rows[0];
+        const track = result;
         const text = 'UPDATE tracks SET metadata = $1 WHERE id = $2';
         pool
-            .query(text, [metadata, file.id])
+            .query(text, [metadata, id])
             .then(() => {
                 track.metadata = metadata;
                 return callback(null, track);
@@ -91,7 +95,7 @@ export const deleteTrack = (id, callback) => {
         if (err) {
             return callback(err);
         }
-        if (!result.rows.length) {
+        if (!result) {
             logger.error('TRACK_NOT_FOUND');
             return callback(null, { error: status.TRACK_NOT_FOUND });
         }

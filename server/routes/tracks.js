@@ -41,6 +41,7 @@ router.get('/', (req, res, next) => {
 
 router.get('/:id', (req, res, next) => {
     readTrack(req.params.id, function(err, result) {
+        logger.debug('readTrack result ', result, err);
         if (err) {
             return next(errorMessages(err));
         }
@@ -78,7 +79,8 @@ router.post('/', (req, res, next) => {
 router.patch('/:id', (req, res, next) => {
     const { metadata } = req.body;
 
-    updateMetadata({ _id: req.params.id }, metadata, (err, result) => {
+    updateMetadata(req.params.id, metadata, (err, result) => {
+        logger.debug('updateMetadata result ', result, err);
         if (err) {
             return next(errorMessages(err));
         }

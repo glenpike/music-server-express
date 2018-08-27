@@ -135,7 +135,7 @@ describe('music-server library API tests', function() {
             });
     });
 
-    it('behaves correctly for updating an invalid track', function(done) {
+    it.only('behaves correctly for updating an invalid track', function(done) {
         request
             .patch(serverURL + 'tracks/invalidId')
             .send({ path: 'Blah', invalid: 'blah' })
@@ -148,7 +148,7 @@ describe('music-server library API tests', function() {
             });
     });
 
-    it('behaves correctly for updating a valid track', function(done) {
+    it.only('behaves correctly for updating a valid track', function(done) {
         const updatedFile = {
             metadata: {
                 title: 'Such Test',
@@ -162,7 +162,7 @@ describe('music-server library API tests', function() {
             .end(function(e, res) {
                 expect(e).to.not.exist;
                 expect(res.status).to.equal(200);
-                expect(res.body._id).to.exist;
+                expect(res.body.id).to.exist;
                 expect(res.body.path).to.equal(testFile.path);
                 expect(res.body).to.deep.include(updatedFile);
                 done();
@@ -180,7 +180,7 @@ describe('music-server library API tests', function() {
             });
     });
 
-    it('behaves correctly for getting an invalid track', function(done) {
+    it.only('behaves correctly for getting an invalid track', function(done) {
         request.get(serverURL + 'tracks/' + invalidId).end(function(e, res) {
             expect(e).to.not.exist;
             expect(res.status).to.equal(404);
