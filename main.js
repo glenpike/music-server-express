@@ -16,8 +16,13 @@ const promisify = Promise.promisify;
 //array in findFiles and then the correct one gets called at
 //getDataAndUpdate time
 
-const cleanDB = () => {
-    return promisify(deleteAllTracks)();
+const cleanDB = async () => {
+    const { deleted, error } = await deleteAllTracks();
+    if (error) {
+        verboseLogger('cleanDB error', error);
+    }
+    verboseLogger('cleanDB deleted ', deleted);
+    return;
 };
 
 const findAudioFiles = (path) => {
@@ -37,15 +42,18 @@ const addFilesToDB = (files) => {
         const limit = Math.max(0, queued.length - parallel + 1);
 
         const trackItem = Promise.some(queued, limit)
-            .then(() => {
-                //will return an existing or newly created item
-                return promisify(createTrack)(file);
+            .then(async () => {
+                const { error, track } = await createTrack(file);
+                if (error) {
+                    errors.push({
+                        file: file.path,
+                        error,
+                    });
+                }
+                return track;
             })
-            .catch((err) => {
-                errors.push({
-                    file: file.path,
-                    error: err,
-                });
+            .catch((error) => {
+                verboseLogger('createTrack unhandled error ', error);
             });
 
         queued.push(trackItem);
@@ -75,21 +83,27 @@ const updateTrackInfo = (files) => {
             return promisify(mm)(createReadStream(file.path))
                 .then((metadata) => {
                     filesWithMetadata++;
-                    return promisify(updateMetadata)(file, metadata);
+                    return updateMetadata(file.id, metadata);
                 })
-                .then((wasUpdated) => {
-                    if (wasUpdated) {
+                .then(({ track, error }) => {
+                    if (error) {
+                        errors.push({
+                            file: file.path,
+                            error,
+                        });
+                        verboseLogger('updateItem error ', error);
+                    }
+                    if (track) {
                         filesUpdated.push(file);
                     }
                     return file;
                 })
-                .catch((err) => {
-                    const error = {
+                .catch((error) => {
+                    // verboseLogger('updateItem unhandled error ', error);
+                    errors.push({
                         file: file.path,
-                        error: err,
-                    };
-                    errors.push(error);
-                    verboseLogger('updateItem error ', error);
+                        error,
+                    });
                 });
         });
 
