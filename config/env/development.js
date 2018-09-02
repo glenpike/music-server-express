@@ -1,7 +1,7 @@
 /* global process */
 export default {
     env: 'development',
-    url: 'postgresql://music:express@localhost:5432/music',
-    collection: 'files',
+    dbConnectionString: 'postgresql://music:express@localhost:5432/music',
+    dbTable: 'tracks',
     port: process.env.PORT || 3000,
 };

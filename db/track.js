@@ -1,5 +1,5 @@
 import md5 from 'md5';
-import pool from './';
+import pool, { dbTable } from './';
 import logger from '../utils/logger';
 import errors from '../utils/errors';
 
@@ -12,7 +12,7 @@ export const readTracks = async (params) => {
     // FIXME - querying currently disabled...
     // const query = params || {};
     try {
-        const { rows: tracks } = await pool.query('SELECT * FROM tracks');
+        const { rows: tracks } = await pool.query(`SELECT * FROM ${dbTable}`);
         logger.debug('readTracks ', tracks.length);
         return { tracks };
     } catch (error) {
@@ -23,7 +23,10 @@ export const readTracks = async (params) => {
 
 export const readTrack = async (id) => {
     try {
-        const { rows } = await pool.query('SELECT * FROM tracks WHERE id = $1', [id]);
+        const { rows } = await pool.query(
+            `SELECT * FROM ${dbTable} WHERE id = $1`,
+            [id]
+        );
         logger.debug('readTrack ', rows);
         const track = rows && rows[0] ? rows[0] : null;
         return { track };
@@ -49,9 +52,9 @@ export const createTrack = async (file) => {
         //Simple, fast, flat copy - assuming this never changes!
         const toInsert = [id, ext, path, mime, metadata];
 
-        const text =
-            'INSERT INTO tracks(id, ext, path, mime, metadata) VALUES($1, $2, $3, $4, $5) RETURNING *';
-        const { rows } = await pool.query(text, toInsert)
+        const text = `INSERT INTO ${dbTable} (id, ext, path, mime, metadata)
+            VALUES($1, $2, $3, $4, $5) RETURNING *`;
+        const { rows } = await pool.query(text, toInsert);
         return { track: rows[0] };
     } catch (error) {
         logger.error('createTrack, error inserting track:', error);
@@ -70,7 +73,7 @@ export const updateMetadata = async (id, metadata) => {
         return { error: status.TRACK_NOT_FOUND };
     }
     try {
-        const text = 'UPDATE tracks SET metadata = $1 WHERE id = $2';
+        const text = `UPDATE ${dbTable} SET metadata = $1 WHERE id = $2`;
         await pool.query(text, [metadata, id]);
         track.metadata = metadata;
         return { track };
@@ -91,8 +94,8 @@ export const deleteTrack = async (id) => {
         return { error: status.TRACK_NOT_FOUND };
     }
     try {
-        const text = 'DELETE FROM tracks WHERE id = $1';
-        const { rowCount } = await pool.query(text, [id])
+        const text = `DELETE FROM ${dbTable} WHERE id = $1`;
+        const { rowCount } = await pool.query(text, [id]);
         if (rowCount !== 1) {
             logger.debug('deleteTrack nothing deleted ');
             return { error: status.TRACK_DELETE_ERROR };
@@ -106,7 +109,7 @@ export const deleteTrack = async (id) => {
 
 export const deleteAllTracks = async () => {
     try {
-        const { rowCount } = await pool.query('DELETE FROM tracks')
+        const { rowCount } = await pool.query(`DELETE FROM ${dbTable}`);
         return { deleted: rowCount };
     } catch (error) {
         logger.error('deleteAllTracks, error:', error);
